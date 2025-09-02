@@ -299,3 +299,182 @@ db.cursos.createIndex({ sedeId: 1, nivel: 1, cuposDisponibles: 1 });      // �
 // const horaFin = new Date(`1970-01-01T${horario.horaFin}:00`);
 // if (horaFin <= horaInicio) throw new Error("Hora fin debe ser mayor que hora inicio");
 
+// 👨‍🏫 4. COLECCIÓN DE PROFESORES - Gestión del personal docente
+// ============================================================
+// Esta colección almacena información de todos los profesores del campus musical
+// ⚠️ OPTIMIZADA: Validaciones robustas, campos adicionales y índices optimizados
+// 🔒 SEGURIDAD: Información sensible manejada con control de acceso
+
+db.createCollection("profesores", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["nombreCompleto", "documento", "contacto", "especialidad", "experiencia", "estado", "createdAt", "updatedAt"],
+      properties: {
+        // 👤 Nombre completo del profesor
+        nombreCompleto: {
+          bsonType: "string",
+          minLength: 3,  // 🛡️ Mínimo 3 caracteres
+          maxLength: 100,  // 🛡️ Máximo 100 caracteres
+          description: "Nombre completo del profesor (mínimo 3, máximo 100 caracteres)"
+        },
+        // 🆔 Documento único de identificación
+        documento: {
+          bsonType: "string",
+          pattern: "^[0-9]{8,15}$",  // 🔍 Entre 8 y 15 dígitos numéricos
+          description: "Documento único de identificación (solo números, 8-15 dígitos)"
+        },
+        // 📞 Información de contacto estructurada
+        contacto: {
+          bsonType: "object",
+          required: ["telefono", "email"],
+          properties: {
+            telefono: {
+              bsonType: "string",
+              pattern: "^[0-9]{7,10}$",  // 🔍 Entre 7 y 10 dígitos numéricos
+              description: "Número de teléfono (solo números, 7-10 dígitos)"
+            },
+            email: {
+              bsonType: "string",
+              pattern: "^.+@.+\\..+$",  // 🔍 Expresión regular para validar email
+              description: "Correo electrónico válido del profesor"
+            },
+            direccion: {
+              bsonType: "string",
+              description: "Dirección de residencia (opcional)"
+            }
+          }
+        },
+        // 🎸 Especialidad musical del profesor
+        especialidad: {
+          enum: ["Piano", "Guitarra", "Violín", "Bajo", "Batería", "Canto", "Teoría Musical", "Composición", "Producción Musical"],  // 🎯 Especialidades permitidas
+          description: "Instrumento o área principal de enseñanza"
+        },
+        // 📊 Años de experiencia profesional
+        experiencia: {
+          bsonType: "int",
+          minimum: 0,  // 🛡️ No puede ser negativo
+          maximum: 50,  // 🛡️ Máximo 50 años de experiencia
+          description: "Años de experiencia profesional (0-50 años)"
+        },
+        // 🎓 Nivel académico del profesor
+        nivelAcademico: {
+          enum: ["Técnico", "Tecnólogo", "Profesional", "Especialización", "Maestría", "Doctorado"],  // 🎯 Niveles permitidos
+          description: "Nivel académico más alto alcanzado"
+        },
+        // ✅ Estado laboral del profesor
+        estado: {
+          enum: ["activo", "inactivo", "vacaciones", "licencia"],  // 🎯 Estados permitidos
+          description: "Estado laboral del profesor en el sistema"
+        },
+        // 💰 Información salarial (SENSIBLE - Solo acceso admin)
+        salario: {
+          bsonType: "number",
+          minimum: 0,  // 🛡️ No puede ser negativo
+          description: "Salario mensual del profesor (información sensible - control de acceso requerido)"
+        },
+        // 📚 Cursos asignados con trazabilidad completa
+        cursosAsignados: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["cursoId", "fechaAsignacion"],
+            properties: {
+              cursoId: {
+                bsonType: "objectId",
+                description: "Referencia al curso asignado"
+              },
+              fechaAsignacion: {
+                bsonType: "date",
+                description: "Fecha en que se asignó el curso al profesor"
+              },
+              estado: {
+                enum: ["activo", "finalizado", "pendiente", "cancelado"],  // 🎯 Estados de asignación
+                description: "Estado actual de la asignación del curso"
+              },
+              fechaInicio: {
+                bsonType: "date",
+                description: "Fecha de inicio del curso (opcional)"
+              },
+              fechaFin: {
+                bsonType: "date",
+                description: "Fecha de finalización del curso (opcional)"
+              }
+            }
+          },
+          description: "Historial completo de cursos asignados con trazabilidad"
+        },
+        // 📅 Fecha de contratación
+        fechaContratacion: {
+          bsonType: "date",
+          description: "Fecha en que el profesor fue contratado"
+        },
+        // 📅 Fecha de creación del registro
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha de creación del registro"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de última actualización"
+        }
+      }
+    }
+  }
+})
+
+// 📊 ÍNDICES OPTIMIZADOS PARA LA COLECCIÓN PROFESORES
+// ===================================================
+// ⚠️ OPTIMIZADOS: Solo índices esenciales para evitar sobrecarga
+
+// 🔑 Índices Únicos - Garantizan integridad de datos críticos
+// ==========================================================
+db.profesores.createIndex({ documento: 1 }, { unique: true });        // 🆔 Documento único (obligatorio)
+db.profesores.createIndex({ "contacto.email": 1 }, { unique: true }); // 📧 Email único (obligatorio)
+// 📞 Teléfono NO único (permite casos familiares compartidos)
+  
+// 🚀 Índices Simples - Solo los más utilizados
+// ============================================
+db.profesores.createIndex({ nombreCompleto: 1 });        // 👤 Búsquedas por nombre
+db.profesores.createIndex({ especialidad: 1 });          // 🎸 Filtros por especialidad
+db.profesores.createIndex({ estado: 1 });                 // ✅ Filtros por estado
+db.profesores.createIndex({ experiencia: -1 });          // 📊 Ordenar por experiencia (descendente)
+db.profesores.createIndex({ nivelAcademico: 1 });         // 🎓 Filtros por nivel académico
+db.profesores.createIndex({ fechaContratacion: -1 });    // 📅 Ordenar por fecha contratación
+db.profesores.createIndex({ createdAt: -1 });            // 📅 Ordenar por fecha creación
+db.profesores.createIndex({ updatedAt: -1 });            // 🔄 Ordenar por última actualización
+
+// 🔗 Índices Compuestos - Solo los IMPRESCINDIBLES
+// ================================================
+db.profesores.createIndex({ especialidad: 1, estado: 1 });                    // 🎸 Profesores activos por especialidad (CONSULTA MÁS COMÚN)
+db.profesores.createIndex({ especialidad: 1, experiencia: -1 });              // 🎸 Ranking de profesores por especialidad y experiencia
+db.profesores.createIndex({ estado: 1, especialidad: 1 });                     // ✅ Estados por especialidad
+db.profesores.createIndex({ nivelAcademico: 1, experiencia: -1 });            // 🎓 Nivel académico y experiencia
+db.profesores.createIndex({ fechaContratacion: -1, estado: 1 });               // 📅 Contratación reciente y estado
+
+// 📝 NOTAS DE GESTIÓN Y SEGURIDAD:
+// ================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Búsqueda de profesores por especialidad y estado
+//    - Filtrado por nivel académico y experiencia
+//    - Ordenamiento por fecha de contratación
+//    - Validación de documentos y emails únicos
+// 
+// 🔒 SEGURIDAD:
+//    - Campo 'salario' es información sensible (solo acceso admin)
+//    - Teléfono NO es único (permite casos familiares compartidos)
+//    - Documento y email SÍ son únicos (integridad crítica)
+// 
+// 🎯 Casos de uso principales:
+//    - Asignación de cursos a profesores con trazabilidad completa
+//    - Reportes de personal docente por sede
+//    - Filtrado de profesores disponibles
+//    - Gestión de estados laborales
+//    - Ranking de profesores por experiencia y especialidad
+// 
+// 📊 TRAZABILIDAD MEJORADA:
+//    - Historial completo de asignaciones de cursos
+//    - Estados de asignación (activo, finalizado, pendiente, cancelado)
+//    - Fechas de asignación, inicio y fin de cursos
