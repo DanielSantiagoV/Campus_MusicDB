@@ -88,3 +88,72 @@ db.usuarios.createIndex({ nombre: 1, apellido: 1 });     // 👤 Búsquedas por 
 db.usuarios.createIndex({ rol: 1, estado: 1 });          // 🎭 Filtros por rol y estado
 db.usuarios.createIndex({ documento: 1, estado: 1 });    // 🆔 Búsquedas por documento y estado
 db.usuarios.createIndex({ email: 1, estado: 1 });        // 📧 Búsquedas por email y estado
+
+// 🏢 2. COLECCIÓN DE SEDES - Gestión de ubicaciones físicas
+// ========================================================
+// Esta colección almacena información de las diferentes sedes del campus musical
+db.createCollection("sedes", {
+    validator: {
+      $jsonSchema: {
+        bsonType: "object",
+        // 📋 Campos obligatorios que debe tener cada documento
+        required: ["nombre", "direccion", "telefono", "estado", "createdAt", "updatedAt"],
+        properties: {
+          // 🏷️ Nombre identificativo de la sede
+          nombre: {
+            bsonType: "string",
+            description: "Nombre de la sede, obligatorio"
+          },
+          // 📍 Dirección física completa de la sede
+          direccion: {
+            bsonType: "string",
+            description: "Dirección física de la sede, obligatorio"
+          },
+          // 📞 Teléfono con validación de formato numérico
+          telefono: {
+            bsonType: "string",
+            pattern: "^[0-9]{7,10}$",  // 🔍 Entre 7 y 10 dígitos numéricos
+            description: "Teléfono de contacto de la sede"
+          },
+          // ✅ Estado operativo de la sede
+          estado: {
+            enum: ["activa", "inactiva"],  // 🎯 Solo estos estados permitidos
+            description: "Control de disponibilidad de la sede"
+          },
+          // 📅 Fecha de creación de la sede
+          createdAt: {
+            bsonType: "date",
+            description: "Fecha de creación, mantenida por la aplicación"
+          },
+          // 🔄 Fecha de última actualización
+          updatedAt: {
+            bsonType: "date",
+            description: "Fecha de última actualización"
+          }
+        }
+      }
+    }
+  })
+
+// 📊 ÍNDICES PARA LA COLECCIÓN SEDES
+// ==================================
+
+// 🔑 Índices Únicos - Garantizan que no haya duplicados
+// =====================================================
+db.sedes.createIndex({ nombre: 1 }, { unique: true });        // 🏷️ Nombre único por sede
+db.sedes.createIndex({ telefono: 1 }, { unique: true });      // 📞 Teléfono único por sede
+  
+// 🚀 Índices Simples - Aceleran búsquedas por un solo campo
+// ========================================================
+db.sedes.createIndex({ estado: 1 });              // ✅ Filtros por estado (activa/inactiva)
+db.sedes.createIndex({ direccion: 1 });           // 📍 Búsquedas por dirección
+db.sedes.createIndex({ createdAt: -1 });          // 📅 Ordenar por fecha creación (más recientes primero)
+db.sedes.createIndex({ updatedAt: -1 });          // 🔄 Ordenar por última actualización
+
+// 🔗 Índices Compuestos - Optimizan consultas con múltiples campos
+// ===============================================================
+db.sedes.createIndex({ estado: 1, nombre: 1 });           // ✅ Sedes activas ordenadas por nombre
+db.sedes.createIndex({ estado: 1, createdAt: -1 });       // ✅ Sedes activas por fecha de creación
+db.sedes.createIndex({ nombre: 1, estado: 1 });           // 🏷️ Búsquedas por nombre y estado
+db.sedes.createIndex({ direccion: 1, estado: 1 });        // 📍 Búsquedas por ubicación y estado
+
