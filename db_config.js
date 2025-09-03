@@ -51,7 +51,17 @@
 
 use('CampusMusicDB');
 
-// 🧹 Limpieza inicial para un entorno de pruebas (opcional)   
+// 🧹 LIMPIEZA INICIAL PARA UN ENTORNO DE PRUEBAS
+// ===============================================
+// ⚠️ ADVERTENCIA: Estos comandos eliminan todas las colecciones existentes
+// Úsalos solo en entornos de desarrollo, nunca en producción
+// 
+// ¿Por qué eliminamos las colecciones?
+// - Garantiza un estado limpio para las pruebas
+// - Evita conflictos con datos existentes
+// - Permite recrear la estructura completa desde cero
+// 
+  
 
 db.usuarios.drop();                    // 👥 Elimina colección de usuarios
 db.sedes.drop();                       // 🏢 Elimina colección de sedes
