@@ -856,3 +856,5 @@ db.reservas_instrumentos.createIndex({ estado: 1, fechaHoraInicio: 1 });
 //    - Eliminados índices redundantes y incorrectos
 //    - Estructura minimalista y clara
 //    - Foco en funcionalidad del taller
+
+print("✅ ¡Éxito! Todas las colecciones y sus respectivos índices han sido creados correctamente en 'CampusMusicDB'.");
