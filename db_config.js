@@ -271,9 +271,47 @@ db.sedes.createIndex({ direccion: 1, estado: 1 });        // 📍 Búsquedas por
 
 // 📚 3. COLECCIÓN DE CURSOS - Gestión de programas educativos (CORREGIDA)
 // ========================================================================
-// Esta colección almacena información de todos los cursos ofrecidos en el campus musical
-// ⚠️ CORREGIDA: Eliminada redundancia de cupos, simplificado profesorId, optimizados índices
-// 🔒 SEGURIDAD: Una sola fuente de verdad para cupos disponibles
+// 
+// 📋 DESCRIPCIÓN:
+// Esta colección almacena información de todos los cursos ofrecidos en el campus musical.
+// Es una de las colecciones más importantes del sistema, ya que conecta estudiantes,
+// profesores, sedes e instrumentos.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Catálogo de cursos disponibles por sede
+// - Gestión de cupos y disponibilidad
+// - Asignación de profesores a cursos
+// - Programación de horarios
+// - Cálculo de ingresos por curso
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - cuposDisponibles nunca puede ser mayor que cupos totales
+// - cuposDisponibles no puede ser negativo
+// - Profesor no puede tener cursos superpuestos en horario
+// - Nombre de curso único por sede
+//
+// 💡 DECISIONES DE DISEÑO IMPORTANTES:
+// - ❌ ELIMINADO: campo 'inscritos' (redundante y peligroso)
+// - ✅ MANTENIDO: solo 'cuposDisponibles' como fuente única de verdad
+// - ❌ ELIMINADO: array 'profesores' (complejidad innecesaria)
+// - ✅ SIMPLIFICADO: campo 'profesorId' único
+// - ❌ ELIMINADO: 'categoriaId' (sobre-normalización)
+// - ✅ AGREGADO: array 'generos' flexible
+//
+// 📊 RELACIONES:
+// - Referencia a sede (sedeId) → colección 'sedes'
+// - Referencia a profesor (profesorId) → colección 'profesores'
+// - Referenciado por inscripciones → colección 'inscripciones'
+//
+// 🎵 GÉNEROS MUSICALES:
+// El array 'generos' permite que un curso tenga múltiples estilos musicales.
+// Ejemplo: Un curso de guitarra puede ser "Rock" y "Blues" simultáneamente.
+// Esto facilita búsquedas como "mostrar todos los cursos de Rock".
+//
+// ⏰ GESTIÓN DE HORARIOS:
+// El objeto 'horario' contiene día, hora de inicio y fin.
+// La validación de formato HH:MM garantiza consistencia en los datos.
+// El índice único en profesor + día + hora previene conflictos de horario.
 
 db.createCollection("cursos", {
   validator: {
