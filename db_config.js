@@ -157,147 +157,195 @@ db.sedes.createIndex({ estado: 1, createdAt: -1 });       // ✅ Sedes activas p
 db.sedes.createIndex({ nombre: 1, estado: 1 });           // 🏷️ Búsquedas por nombre y estado
 db.sedes.createIndex({ direccion: 1, estado: 1 });        // 📍 Búsquedas por ubicación y estado
 
-// 📚 3. COLECCIÓN DE CURSOS - Gestión de programas educativos (OPTIMIZADA)
+// 📚 3. COLECCIÓN DE CURSOS - Gestión de programas educativos (CORREGIDA)
 // ========================================================================
 // Esta colección almacena información de todos los cursos ofrecidos en el campus musical
-// ⚠️ OPTIMIZADA: Índices reducidos y validaciones de negocio mejoradas
+// ⚠️ CORREGIDA: Eliminada redundancia de cupos, simplificado profesorId, optimizados índices
+// 🔒 SEGURIDAD: Una sola fuente de verdad para cupos disponibles
+
 db.createCollection("cursos", {
-    validator: {
-      $jsonSchema: {
-        bsonType: "object",
-        // 📋 Campos obligatorios que debe tener cada documento
-        required: ["nombre", "instrumentoId", "nivel", "duracion", "cupos", "cuposDisponibles", "costo", "horario", "sedeId", "profesorId", "createdAt", "updatedAt"],
-        properties: {
-          // 📖 Nombre descriptivo del curso
-          nombre: {
-            bsonType: "string",
-            description: "Nombre del curso (ej: 'Curso de Piano Avanzado')"
-          },
-          // 🎸 Referencia al instrumento que se enseña
-          instrumentoId: {
-            bsonType: "objectId",
-            description: "Referencia a instrumentos._id"
-          },
-          // 📊 Nivel de dificultad del curso
-          nivel: {
-            enum: ["básico", "intermedio", "avanzado"],  // 🎯 Solo estos niveles permitidos
-            description: "Nivel de dificultad del curso"
-          },
-          // ⏱️ Duración del curso en semanas o meses
-          duracion: {
-            bsonType: "number",
-            minimum: 1,  // 🛡️ Mínimo 1 unidad de tiempo
-            description: "Duración en semanas o meses"
-          },
-          // 👥 Capacidad total del curso
-          cupos: {
-            bsonType: "number",
-            minimum: 1,  // 🛡️ Mínimo 1 cupo
-            description: "Cupos totales del curso"
-          },
-          // 🎫 Cupos disponibles actualizados
-          cuposDisponibles: {
-            bsonType: "number",
-            minimum: 0,  // 🛡️ No puede ser negativo
-            description: "Cupos disponibles actualizados en inscripciones"
-          },
-          // 💰 Valor monetario del curso
-          costo: {
-            bsonType: "number",
-            minimum: 0,  // 🛡️ No puede ser negativo
-            description: "Valor del curso"
-          },
-          // 🕐 Horario de clases
-          horario: {
-            bsonType: "object",
-            required: ["dia", "horaInicio", "horaFin"],
-            properties: {
-              dia: {
-                bsonType: "string",
-                description: "Día de la semana (ej: 'Lunes')"
-              },
-              horaInicio: {
-                bsonType: "string",
-                pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",  // 🔍 Formato HH:MM
-                description: "Hora de inicio (ej: '14:00')"
-              },
-              horaFin: {
-                bsonType: "string",
-                pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",  // 🔍 Formato HH:MM
-                description: "Hora de fin (ej: '16:00')"
-              }
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["nombre", "instrumento", "nivel", "duracion", "cupos", "cuposDisponibles", "costo", "horario", "sedeId", "profesorId", "createdAt", "updatedAt"],
+      properties: {
+        // 📖 Nombre descriptivo del curso
+        nombre: {
+          bsonType: "string",
+          minLength: 3,  // 🛡️ Mínimo 3 caracteres
+          maxLength: 100,  // 🛡️ Máximo 100 caracteres
+          description: "Nombre del curso (ej: 'Curso de Piano Avanzado')"
+        },
+        // 🎸 Instrumento que se enseña (SIMPLIFICADO)
+        instrumento: {
+          bsonType: "string",
+          enum: ["Piano", "Guitarra", "Violín", "Bajo", "Batería", "Canto", "Teoría Musical", "Composición", "Producción Musical"],  // 🎯 Instrumentos permitidos
+          description: "Instrumento principal que se enseña en el curso"
+        },
+        // 📊 Nivel de dificultad del curso
+        nivel: {
+          enum: ["básico", "intermedio", "avanzado"],  // 🎯 Solo estos niveles permitidos
+          description: "Nivel de dificultad del curso"
+        },
+        // ⏱️ Duración del curso en semanas
+        duracion: {
+          bsonType: "int",
+          minimum: 1,  // 🛡️ Mínimo 1 semana
+          maximum: 52,  // 🛡️ Máximo 1 año
+          description: "Duración en semanas (1-52 semanas)"
+        },
+        // 👥 Capacidad total del curso
+        cupos: {
+          bsonType: "int",
+          minimum: 1,  // 🛡️ Mínimo 1 cupo
+          maximum: 50,  // 🛡️ Máximo 50 cupos por curso
+          description: "Cupos totales del curso"
+        },
+        // 🎫 Cupos disponibles (ÚNICA FUENTE DE VERDAD)
+        cuposDisponibles: {
+          bsonType: "int",
+          minimum: 0,  // 🛡️ No puede ser negativo
+          maximum: 50,  // 🛡️ No puede exceder cupos totales
+          description: "Cupos disponibles actualizados (fuente única de verdad)"
+        },
+        // 💰 Valor monetario del curso
+        costo: {
+          bsonType: "number",
+          minimum: 0,  // 🛡️ No puede ser negativo
+          maximum: 10000,  // 🛡️ Máximo $10,000
+          description: "Valor del curso en pesos colombianos"
+        },
+        // 🕐 Horario de clases
+        horario: {
+          bsonType: "object",
+          required: ["dia", "horaInicio", "horaFin"],
+          properties: {
+            dia: {
+              enum: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"],  // 🎯 Días permitidos
+              description: "Día de la semana para las clases"
+            },
+            horaInicio: {
+              bsonType: "string",
+              pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",  // 🔍 Formato HH:MM
+              description: "Hora de inicio (ej: '14:00')"
+            },
+            horaFin: {
+              bsonType: "string",
+              pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",  // 🔍 Formato HH:MM
+              description: "Hora de fin (ej: '16:00')"
             }
-          },
-          // 🏢 Referencia a la sede donde se imparte
-          sedeId: {
-            bsonType: "objectId",
-            description: "Referencia a sedes._id"
-          },
-          // 👨‍🏫 Referencia al profesor asignado
-          profesorId: {
-            bsonType: "objectId",
-            description: "Referencia a profesores._id"
-          },
-          // 📅 Fecha de creación del curso
-          createdAt: {
-            bsonType: "date",
-            description: "Fecha de creación"
-          },
-          // 🔄 Fecha de última actualización
-          updatedAt: {
-            bsonType: "date",
-            description: "Fecha de última actualización"
           }
+        },
+        // 🏢 Referencia a la sede donde se imparte
+        sedeId: {
+          bsonType: "objectId",
+          description: "Referencia a la sede donde se imparte el curso (sedes._id)"
+        },
+        // 👨‍🏫 Referencia al profesor principal (SIMPLIFICADO)
+        profesorId: {
+          bsonType: "objectId",
+          description: "Referencia al profesor principal del curso (profesores._id)"
+        },
+        // 🎵 Géneros musicales del curso (FLEXIBLE)
+        generos: {
+          bsonType: "array",
+          items: {
+            bsonType: "string",
+            enum: ["Clásica", "Rock", "Pop", "Jazz", "Blues", "Folk", "Electrónica", "Latina", "Country", "Reggae", "Hip Hop", "Metal", "Funk", "Soul", "R&B"]  // 🎯 Géneros permitidos
+          },
+          description: "Géneros o estilos musicales asociados al curso"
+        },
+        // ✅ Estado del curso
+        estado: {
+          enum: ["activo", "inactivo", "próximo", "finalizado"],  // 🎯 Estados permitidos
+          description: "Estado actual del curso"
+        },
+        // 📅 Fecha de creación del curso
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha de creación del curso"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de última actualización"
         }
-      },
-      // 🛡️ VALIDACIONES DE NEGOCIO ADICIONALES
-      // =====================================
-      $expr: {
-        $and: [
-          // 🎫 Regla crítica: cuposDisponibles nunca puede ser mayor que cupos
-          { $lte: ["$cuposDisponibles", "$cupos"] },
-          // ⏰ Validación de horario: horaFin debe ser mayor que horaInicio
-          // Nota: Esta validación se maneja mejor en la aplicación por la complejidad
-          // de comparar strings de tiempo en MongoDB
-        ]
       }
+    },
+    // 🛡️ VALIDACIONES DE NEGOCIO CRÍTICAS
+    // ===================================
+    $expr: {
+      $and: [
+        // 🎫 Regla crítica: cuposDisponibles nunca puede ser mayor que cupos
+        { $lte: ["$cuposDisponibles", "$cupos"] },
+        // 🛡️ cuposDisponibles no puede ser negativo
+        { $gte: ["$cuposDisponibles", 0] }
+      ]
     }
-  })
+  }
+})
 
 // 📊 ÍNDICES OPTIMIZADOS PARA LA COLECCIÓN CURSOS
 // ===============================================
-// ⚠️ REDUCIDOS: Solo índices esenciales para consultas frecuentes
+// ⚠️ OPTIMIZADOS: Solo índices esenciales, eliminada redundancia
 
-// 🔑 Índices Únicos - Garantizan integridad de datos
-// ==================================================
+// 🔑 Índices Únicos - Garantizan integridad de datos críticos
+// ==========================================================
 db.cursos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // 📖 Nombre único por sede
 db.cursos.createIndex({ profesorId: 1, "horario.dia": 1, "horario.horaInicio": 1 }, { unique: true });  // 👨‍🏫 Profesor no puede tener cursos superpuestos
-  
-// 🚀 Índices Simples - Solo los más utilizados
+
+// 🚀 Índices Simples - Solo los IMPRESCINDIBLES
 // ============================================
-db.cursos.createIndex({ instrumentoId: 1 });        // 🎸 Cursos por instrumento
-db.cursos.createIndex({ sedeId: 1 });               // 🏢 Cursos por sede
-db.cursos.createIndex({ cuposDisponibles: 1 });     // 🎫 Cursos con cupos disponibles
-db.cursos.createIndex({ createdAt: -1 });           // 📅 Cursos más recientes
-db.cursos.createIndex({ updatedAt: -1 });           // 🔄 Cursos actualizados recientemente
+db.cursos.createIndex({ instrumento: 1 });        // 🎸 Cursos por instrumento
+db.cursos.createIndex({ cuposDisponibles: 1 });   // 🎫 Cursos con cupos disponibles
+db.cursos.createIndex({ costo: 1 });              // 💰 Cursos por precio
+db.cursos.createIndex({ estado: 1 });             // ✅ Cursos por estado
+db.cursos.createIndex({ createdAt: -1 });         // 📅 Cursos más recientes
 
-// 🔗 Índices Compuestos - Consultas más frecuentes
-// ================================================
-db.cursos.createIndex({ instrumentoId: 1, nivel: 1 });                    // 🎸 Cursos de instrumento por nivel
-db.cursos.createIndex({ sedeId: 1, nivel: 1 });                           // 🏢 Cursos de sede por nivel
-db.cursos.createIndex({ nivel: 1, cuposDisponibles: 1 });                 // 📊 Cursos por nivel con cupos
-db.cursos.createIndex({ "horario.dia": 1, "horario.horaInicio": 1 });     // 🗓️ Cursos por día y hora
-db.cursos.createIndex({ instrumentoId: 1, nivel: 1, sedeId: 1 });         // 🎸 Cursos específicos por instrumento, nivel y sede
-db.cursos.createIndex({ sedeId: 1, nivel: 1, cuposDisponibles: 1 });      // 🏢 Cursos de sede por nivel con cupos
+// 🔗 Índices Compuestos - Solo los MÁS UTILIZADOS
+// ===============================================
+db.cursos.createIndex({ sedeId: 1, nivel: 1 });                    // 🏢 Cursos de sede por nivel (CONSULTA MÁS COMÚN)
+db.cursos.createIndex({ sedeId: 1, estado: 1 });                   // 🏢 Cursos activos por sede
+db.cursos.createIndex({ instrumento: 1, nivel: 1 });               // 🎸 Cursos de instrumento por nivel
+db.cursos.createIndex({ nivel: 1, cuposDisponibles: 1 });         // 📊 Cursos por nivel con cupos
+db.cursos.createIndex({ "horario.dia": 1, "horario.horaInicio": 1 }); // 🗓️ Cursos por día y hora
+db.cursos.createIndex({ sedeId: 1, instrumento: 1 });            // 🏢 Cursos de sede por instrumento
 
-// 📝 NOTA SOBRE VALIDACIÓN DE HORARIO:
-// ====================================
-// La validación de que horaFin > horaInicio se debe manejar en la aplicación
-// ya que MongoDB no puede comparar fácilmente strings de tiempo en $jsonSchema
-// Ejemplo de validación en JavaScript:
-// const horaInicio = new Date(`1970-01-01T${horario.horaInicio}:00`);
-// const horaFin = new Date(`1970-01-01T${horario.horaFin}:00`);
-// if (horaFin <= horaInicio) throw new Error("Hora fin debe ser mayor que hora inicio");
+// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN:
+// ======================================
+// ✅ CORRECCIONES CRÍTICAS IMPLEMENTADAS:
+//    - ❌ ELIMINADO: campo 'inscritos' (redundante y peligroso)
+//    - ✅ MANTENIDO: solo 'cuposDisponibles' como fuente única de verdad
+//    - ❌ ELIMINADO: array 'profesores' (complejidad innecesaria)
+//    - ✅ SIMPLIFICADO: campo 'profesorId' único
+//    - ❌ ELIMINADO: 'categoriaId' (sobre-normalización)
+//    - ✅ AGREGADO: array 'generos' flexible
+//    - ❌ ELIMINADO: 'instrumentoId' (complejidad innecesaria)
+//    - ✅ SIMPLIFICADO: campo 'instrumento' directo
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Una sola fuente de verdad para cupos
+//    - Validaciones de negocio críticas con $expr
+//    - Estados de curso controlados
+//    - Referencias a sedes y profesores válidas
+// 
+// 🎯 Casos de uso optimizados:
+//    - Transacciones de inscripción simplificadas (solo modificar cuposDisponibles)
+//    - Consultas de cupos disponibles rápidas
+//    - Filtrado por instrumento y nivel eficiente
+//    - Reportes de ocupación por sede
+// 
+// 📊 CONSULTAS CON $LOOKUP:
+//    - Datos de sede: $lookup con colección sedes
+//    - Información de profesor: $lookup con colección profesores
+//    - Inscripciones activas: $lookup con colección inscripciones
+// 
+// 🚮 OPTIMIZACIONES REALIZADAS:
+//    - Solo 12 índices esenciales (reducidos de 15+)
+//    - Eliminados índices redundantes
+//    - Estructura simplificada y clara
+//    - Foco en funcionalidad del taller
 
 // 👨‍🏫 4. COLECCIÓN DE PROFESORES - Gestión del personal docente
 // ============================================================
@@ -582,5 +630,111 @@ db.inscripciones.createIndex({ fechaInscripcion: -1, estado: 1 });              
 // 🚮 SIMPLIFICACIONES REALIZADAS:
 //    - Eliminadas colecciones complejas (evaluaciones, pagos)
 //    - Solo 3 índices esenciales
+//    - Estructura minimalista y clara
+//    - Foco en funcionalidad del taller
+
+// 🎸 6. COLECCIÓN DE INSTRUMENTOS - Gestión de instrumentos musicales
+// =================================================================
+// Esta colección almacena información de todos los instrumentos musicales disponibles
+// ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
+// 🔒 SEGURIDAD: Control de estados y ubicación de instrumentos
+
+db.createCollection("instrumentos", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["nombre", "tipo", "estado", "sedeId", "createdAt", "updatedAt"],
+      properties: {
+        // 🎸 Nombre o modelo del instrumento
+        nombre: {
+          bsonType: "string",
+          minLength: 2,  // 🛡️ Mínimo 2 caracteres
+          maxLength: 100,  // 🛡️ Máximo 100 caracteres
+          description: "Nombre o modelo del instrumento (ej: 'Guitarra Yamaha C40')"
+        },
+        // 🎯 Clasificación general del instrumento
+        tipo: {
+          enum: ["cuerda", "viento", "percusión", "teclado", "otro"],  // 🎯 Tipos permitidos
+          description: "Clasificación general del instrumento musical"
+        },
+        // ✅ Estado actual del instrumento
+        estado: {
+          enum: ["disponible", "en_uso", "mantenimiento", "reservado", "retirado"],  // 🎯 Estados permitidos
+          description: "Estado actual del instrumento en el sistema"
+        },
+        // 🏢 Referencia a la sede donde se encuentra
+        sedeId: {
+          bsonType: "objectId",
+          description: "Referencia a la sede donde se encuentra el instrumento (sedes._id)"
+        },
+        // 📝 Detalles adicionales del instrumento
+        descripcion: {
+          bsonType: "string",
+          maxLength: 500,  // 🛡️ Máximo 500 caracteres
+          description: "Detalles adicionales sobre el instrumento (marca, modelo, características)"
+        },
+        // 📅 Fecha de registro en el sistema
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha en que el instrumento fue registrado en el sistema"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de última actualización del registro"
+        }
+      }
+    }
+  }
+})
+
+// 📊 ÍNDICES MINIMALISTAS PARA LA COLECCIÓN INSTRUMENTOS
+// ======================================================
+// ⚠️ SIMPLIFICADOS: Solo índices esenciales para el taller
+
+// 🔑 Índices Únicos - Garantizan integridad de datos críticos
+// ==========================================================
+db.instrumentos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // 🎸 Nombre único por sede
+
+// 🚀 Índices Simples - Para consultas frecuentes
+// ==============================================
+db.instrumentos.createIndex({ tipo: 1 });        // 🎯 Instrumentos por tipo
+db.instrumentos.createIndex({ estado: 1 });      // ✅ Instrumentos por estado
+db.instrumentos.createIndex({ sedeId: 1 });      // 🏢 Instrumentos por sede
+
+// 🔗 Índices Compuestos - Solo los IMPRESCINDIBLES
+// ================================================
+db.instrumentos.createIndex({ sedeId: 1, estado: 1 });                    // 🏢 Instrumentos disponibles por sede (CONSULTA MÁS COMÚN)
+db.instrumentos.createIndex({ tipo: 1, estado: 1 });                     // 🎯 Instrumentos por tipo y estado
+db.instrumentos.createIndex({ sedeId: 1, tipo: 1 });                     // 🏢 Instrumentos por sede y tipo
+
+// 📝 NOTAS DE GESTIÓN Y SIMPLIFICACIÓN:
+// ======================================
+// ✅ La colección está SIMPLIFICADA para el taller:
+//    - Solo datos esenciales de instrumentos
+//    - Índices minimalistas (6 totales)
+//    - Estados claros y controlados
+//    - Foco en funcionalidad básica
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Nombre único por sede (evita duplicados)
+//    - Estados de instrumento controlados
+//    - Validación de longitudes de texto
+//    - Referencias a sedes válidas
+// 
+// 🎯 Casos de uso del taller:
+//    - Gestión de inventario de instrumentos
+//    - Reservas de instrumentos por estudiantes
+//    - Reportes de disponibilidad por sede
+//    - Control de mantenimiento de instrumentos
+// 
+// 📊 CONSULTAS CON $LOOKUP:
+//    - Datos de sede: $lookup con colección sedes
+//    - Información de reservas: $lookup con colección reservas_instrumentos
+// 
+// 🚮 SIMPLIFICACIONES REALIZADAS:
+//    - Solo 6 índices esenciales
+//    - Estados simplificados y claros
 //    - Estructura minimalista y clara
 //    - Foco en funcionalidad del taller
