@@ -27,12 +27,18 @@ db.createCollection("usuarios", {
       $jsonSchema: {
         bsonType: "object",
         // 📋 Campos obligatorios que debe tener cada documento
-        required: ["nombre", "email", "password", "rol", "createdAt"],
+        required: ["nombre", "documento", "email", "password", "rol", "createdAt"],
         properties: {
           // 👤 Nombre del usuario
           nombre: {
             bsonType: "string",
             description: "Nombre del usuario, requerido"
+          },
+          // 🆔 Documento único de identificación
+          documento: {
+            bsonType: "string",
+            pattern: "^[0-9]{8,15}$",  // 🔍 Entre 8 y 15 dígitos numéricos
+            description: "Documento único de identificación (solo números, 8-15 dígitos)"
           },
           // 📧 Email con validación de formato
           email: {
