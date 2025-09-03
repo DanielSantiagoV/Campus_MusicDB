@@ -75,7 +75,33 @@ db.reservas_instrumentos.drop();       // 🎺 Elimina colección de reservas
 
 // 👥 1. COLECCIÓN DE USUARIOS - Sistema de autenticación y roles
 // =============================================================
+// 
+// 📋 DESCRIPCIÓN:
 // Esta colección almacena todos los usuarios del sistema (admin, profesores, estudiantes)
+// Es la base del sistema de autenticación y autorización.
+//
+// 🎯 CASOS DE USO:
+// - Login y autenticación de usuarios
+// - Control de acceso basado en roles
+// - Gestión de perfiles de usuario
+// - Recuperación de contraseñas
+//
+// 🔒 SEGURIDAD:
+// - Contraseñas encriptadas (hash + salt)
+// - Validación de formato de email
+// - Documento único por usuario
+// - Roles predefinidos para control de acceso
+//
+// 📊 RELACIONES:
+// - Los estudiantes tienen su información extendida en la colección 'estudiantes'
+// - Los profesores tienen su información extendida en la colección 'profesores'
+// - Los admins pueden acceder a todas las funcionalidades del sistema
+//
+// 💡 DECISIONES DE DISEÑO:
+// - Separamos usuarios básicos de información extendida para flexibilidad
+// - Usamos enums para roles para evitar errores de tipeo
+// - Documento único permite identificación sin ambigüedades
+// - Email único facilita recuperación de contraseñas
 
 db.createCollection("usuarios", {
     validator: {
