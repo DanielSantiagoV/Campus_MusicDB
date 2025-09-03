@@ -125,7 +125,7 @@ db.createCollection("usuarios", {
           description: "Sede asociada (obligatoria si rol = 'empleado_sede')."
         },
         estado: {
-          enum: ["activo", "inactivo", "suspendido", "eliminado"],
+          enum: ["activo", "inactivo", "suspendido"],
           description: "Estado administrativo del usuario. Requerido."
         },
 
@@ -150,49 +150,9 @@ db.createCollection("usuarios", {
   }
 });
 
-// =========================================
-// ÍNDICES RECOMENDADOS (CON SOFT DELETE)
-// =========================================
-// 🔍 PROBLEMA DEL "USUARIO FANTASMA":
-// Si un usuario se elimina (soft delete: estado = "eliminado"),
-// sus datos únicos (username, email, documento) quedan "bloqueados" para siempre.
-// Un nuevo usuario no puede usar esos valores aunque el anterior esté "eliminado".
-//
-// ✅ SOLUCIÓN: ÍNDICES PARCIALES
-// Solo aplican unicidad a usuarios activos (estado != "eliminado").
-// Esto permite "reutilizar" datos únicos de usuarios eliminados.
-
-// Índice único parcial para username (solo usuarios activos)
-db.usuarios.createIndex(
-  { username: 1 }, 
-  { 
-    unique: true,
-    partialFilterExpression: { estado: { $ne: "eliminado" } }
-  }
-);
-
-// Índice único parcial para email (solo usuarios activos)
-db.usuarios.createIndex(
-  { email: 1 }, 
-  { 
-    unique: true,
-    partialFilterExpression: { estado: { $ne: "eliminado" } }
-  }
-);
-
-// Índice único parcial para documento (solo usuarios activos)
-db.usuarios.createIndex(
-  { documento: 1 }, 
-  { 
-    unique: true,
-    partialFilterExpression: { estado: { $ne: "eliminado" } }
-  }
-);
-
-// Índices adicionales para consultas comunes
-db.usuarios.createIndex({ rol: 1, estado: 1 });
-db.usuarios.createIndex({ sedeId: 1, estado: 1 });
-db.usuarios.createIndex({ createdAt: -1 });
+db.usuarios.createIndex({ username: 1 }, { unique: true });
+db.usuarios.createIndex({ email: 1 }, { unique: true });
+db.usuarios.createIndex({ documento: 1 }, { unique: true });
 
 
 // 🏢 2. COLECCIÓN DE SEDES - Gestión de ubicaciones físicas
@@ -616,7 +576,7 @@ db.createCollection("cursos", {
         },
         // 🎸 Instrumento principal del curso
         instrumento: {
-          enum: ["piano", "guitarra", "violin", "canto", "teoria", "bajo"],  // 🎯 Instrumentos permitidos
+          enum: ["piano", "guitarra", "violin", "canto", "teoria musical", "bajo", "bateria"],  // 🎯 Instrumentos permitidos
           description: "Instrumento principal que se enseña en el curso"
         },
         // 💰 Costo del curso (CRÍTICO para transacciones)
