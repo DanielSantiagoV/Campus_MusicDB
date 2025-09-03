@@ -738,3 +738,121 @@ db.instrumentos.createIndex({ sedeId: 1, tipo: 1 });                     // 🏢
 //    - Estados simplificados y claros
 //    - Estructura minimalista y clara
 //    - Foco en funcionalidad del taller
+
+// 🎺 7. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos (CORREGIDA)
+// =================================================================
+// Esta colección almacena todas las reservas de instrumentos por parte de estudiantes
+// ⚠️ CORREGIDA: Validaciones estructurales en DB, lógica de negocio en App
+// 🔒 SEGURIDAD: Control de disponibilidad y conflictos de horarios
+
+db.createCollection("reservas_instrumentos", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["instrumentoId", "estudianteId", "fechaHoraInicio", "fechaHoraFin", "estado", "createdAt", "updatedAt"],
+      properties: {
+        // 🎸 Referencia al instrumento reservado
+        instrumentoId: {
+          bsonType: "objectId",
+          description: "Referencia al instrumento reservado (instrumentos._id)"
+        },
+        // 👨‍🎓 Referencia al estudiante que realiza la reserva
+        estudianteId: {
+          bsonType: "objectId",
+          description: "Referencia al estudiante que realiza la reserva (estudiantes._id)"
+        },
+        // 📅 Fecha y hora de inicio de la reserva
+        fechaHoraInicio: {
+          bsonType: "date",
+          description: "Fecha y hora completas de inicio de la reserva"
+        },
+        // 📅 Fecha y hora de fin de la reserva
+        fechaHoraFin: {
+          bsonType: "date",
+          description: "Fecha y hora completas de finalización de la reserva"
+        },
+        // ✅ Estado actual de la reserva (SIMPLIFICADO)
+        estado: {
+          enum: ["activa", "finalizada", "cancelada"],  // 🎯 Estados más comunes
+          description: "Estado actual de la reserva"
+        },
+        // 📅 Fecha de creación de la reserva
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha en que se creó la reserva"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de última actualización de la reserva"
+        }
+      }
+    },
+    // 🛡️ VALIDACIÓN ESTRUCTURAL ÚNICA - Solo la que la DB puede garantizar
+    // ====================================================================
+    $expr: {
+      // ⏰ Regla estructural: fechaHoraFin debe ser mayor que fechaHoraInicio
+      $gt: ["$fechaHoraFin", "$fechaHoraInicio"]
+    }
+  }
+})
+
+// 📊 ÍNDICES ÓPTIMOS Y NO REDUNDANTES PARA RESERVAS_INSTRUMENTOS
+// ==============================================================
+// ⚠️ MINIMALISTAS: Solo 3 índices que cubren todas las consultas principales
+
+// 1. 🎯 ÍNDICE PRINCIPAL DE OPERACIONES Y BÚSQUEDA DE DISPONIBILIDAD
+// =================================================================
+// Sirve para:
+//    - Encontrar todas las reservas de un instrumento
+//    - Encontrar reservas de un instrumento en un rango de fechas
+//    - Es el índice que usará la transacción de la App para buscar solapamientos
+db.reservas_instrumentos.createIndex({ instrumentoId: 1, fechaHoraInicio: 1 });
+
+// 2. 👨‍🎓 ÍNDICE PARA LA VISTA DEL USUARIO ("Mis Reservas")
+// ========================================================
+// Sirve para:
+//    - Encontrar todas las reservas de un estudiante
+//    - Las devuelve ya ordenadas de la más nueva a la más antigua (¡súper eficiente!)
+db.reservas_instrumentos.createIndex({ estudianteId: 1, fechaHoraInicio: -1 });
+
+// 3. 📊 ÍNDICE PARA REPORTES ADMINISTRATIVOS (OPCIONAL)
+// ====================================================
+// Sirve para:
+//    - Encontrar todas las reservas activas/pendientes a partir de una fecha
+//    - Útil para paneles de control ("ver las reservas de mañana")
+db.reservas_instrumentos.createIndex({ estado: 1, fechaHoraInicio: 1 });
+
+// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN:
+// ======================================
+// ✅ CORRECCIONES CRÍTICAS IMPLEMENTADAS:
+//    - ❌ ELIMINADO: índice único incorrecto para prevenir solapamientos
+//    - ✅ MANTENIDO: solo validación estructural (fin > inicio)
+//    - ❌ ELIMINADO: validación de "no reservas en el pasado" (lógica de App)
+//    - ✅ SIMPLIFICADO: estados a los más comunes
+//    - ❌ ELIMINADO: campo observaciones (no esencial para el taller)
+//    - ✅ OPTIMIZADO: solo 3 índices no redundantes
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Solo validación estructural que la DB puede garantizar
+//    - Prevención de solapamientos se maneja en la aplicación
+//    - Estados de reserva simplificados y claros
+//    - Referencias a instrumentos y estudiantes válidas
+// 
+// 🎯 Casos de uso optimizados:
+//    - Búsqueda de disponibilidad por instrumento y fecha
+//    - Historial de reservas por estudiante (ordenado)
+//    - Reportes administrativos por estado y fecha
+//    - Transacciones de reserva sin conflictos
+// 
+// 📊 CONSULTAS CON $LOOKUP:
+//    - Datos del instrumento: $lookup con colección instrumentos
+//    - Información del estudiante: $lookup con colección estudiantes
+//    - Datos de sede: $lookup con colección sedes
+// 
+// 🚮 OPTIMIZACIONES REALIZADAS:
+//    - Solo 3 índices esenciales (reducidos de 8)
+//    - Eliminados índices redundantes y incorrectos
+//    - Estructura minimalista y clara
+//    - Foco en funcionalidad del taller
