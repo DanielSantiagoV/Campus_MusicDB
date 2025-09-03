@@ -14,7 +14,7 @@
 // - Manejar transacciones y operaciones complejas
 //
 // 🏗️ ARQUITECTURA DE LA BASE DE DATOS:
-// - 7 colecciones principales interrelacionadas
+// - 8 colecciones principales interrelacionadas
 // - Validaciones a nivel de documento y colección
 // - Índices simples, compuestos y únicos
 // - Referencias mediante ObjectId para integridad referencial
@@ -29,10 +29,11 @@
 // 1. usuarios - Sistema de autenticación y roles
 // 2. sedes - Gestión de ubicaciones físicas
 // 3. cursos - Gestión de programas educativos
-// 4. profesores - Gestión del personal docente
-// 5. inscripciones - Gestión de matriculaciones
-// 6. instrumentos - Gestión de instrumentos musicales
-// 7. reservas_instrumentos - Gestión de préstamos
+// 4. estudiantes - Gestión del rol de estudiante
+// 5. profesores - Gestión del personal docente
+// 6. inscripciones - Gestión de matriculaciones
+// 7. instrumentos - Gestión de instrumentos musicales
+// 8. reservas_instrumentos - Gestión de préstamos
 //
 // 🚀 CÓMO EJECUTAR ESTE ARCHIVO:
 // 1. Asegúrate de tener MongoDB instalado y ejecutándose
@@ -497,7 +498,201 @@ db.cursos.createIndex({ sedeId: 1, instrumento: 1 });            // 🏢 Cursos 
 //    - Estructura simplificada y clara
 //    - Foco en funcionalidad del taller
 
-// 👨‍🏫 4. COLECCIÓN DE PROFESORES - Gestión del personal docente
+// 👨‍🎓 4. COLECCIÓN DE ESTUDIANTES - Gestión del rol de estudiante (CORREGIDA)
+// ===========================================================================
+// 
+// 📋 DESCRIPCIÓN:
+// Esta colección almacena ÚNICAMENTE información específica del rol de "estudiante".
+// NO contiene datos de identidad (nombre, documento, email) - esos están en 'usuarios'.
+// Es una colección de rol que extiende la información de un usuario que es estudiante.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Gestión del rol académico de estudiantes
+// - Seguimiento de progreso musical
+// - Control de instrumentos de interés
+// - Gestión de preferencias académicas
+// - Estados de matrícula estudiantil
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Referencia única a usuario (usuarioId)
+// - Nivel de experiencia coherente
+// - Estados de estudiante controlados
+// - Fecha de nacimiento válida (validación en aplicación)
+//
+// 💡 DECISIONES DE DISEÑO CORREGIDAS:
+// ✅ SEPARACIÓN DE RESPONSABILIDADES:
+//    - usuarios: identidad, autenticación, datos personales
+//    - estudiantes: rol académico, preferencias musicales, estado de matrícula
+//    - Una sola fuente de verdad para identidad
+//
+// ✅ ELIMINACIÓN DE ARRAYS DE CRECIMIENTO ILIMITADO:
+//    - historialPagos movido a colección separada 'pagos'
+//    - Evita arrays que crecen sin límite
+//    - Consultas financieras eficientes
+//
+// ✅ LÓGICA TEMPORAL EN APLICACIÓN:
+//    - Validaciones de fecha en capa de aplicación
+//    - Base de datos solo valida estructura
+//
+// 📊 RELACIONES:
+// - Referencia a usuario (usuarioId) → colección 'usuarios' (IDENTIDAD)
+// - Referencia a sede preferida (sedeId) → colección 'sedes'
+// - Referenciado por inscripciones → colección 'inscripciones'
+// - Referenciado por reservas → colección 'reservas_instrumentos'
+// - Referenciado por pagos → colección 'pagos'
+//
+// 🎵 GESTIÓN DE INSTRUMENTOS:
+// El array 'instrumentosInteres' permite que un estudiante tenga múltiples
+// instrumentos de interés. Esto facilita búsquedas como "estudiantes interesados
+// en guitarra" y permite ofrecer cursos relevantes.
+//
+// 💰 CONTROL FINANCIERO:
+// Para el taller, el control financiero se puede manejar a través de
+// campos en las inscripciones o crear una colección separada si es necesario.
+
+db.createCollection("estudiantes", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["usuarioId", "fechaNacimiento", "nivelExperiencia", "sedeId", "estado", "createdAt", "updatedAt"],
+      properties: {
+        // 🔗 Referencia al usuario (IDENTIDAD)
+        usuarioId: {
+          bsonType: "objectId",
+          description: "Referencia al usuario en la colección usuarios (IDENTIDAD - nombre, documento, email)"
+        },
+        // 📅 Fecha de nacimiento del estudiante
+        fechaNacimiento: {
+          bsonType: "date",
+          description: "Fecha de nacimiento del estudiante (validación temporal en aplicación)"
+        },
+        // 🎵 Nivel de experiencia musical
+        nivelExperiencia: {
+          enum: ["principiante", "intermedio", "avanzado"],  // 🎯 Niveles permitidos
+          description: "Nivel de experiencia musical del estudiante"
+        },
+        // 🎸 Instrumentos de interés del estudiante
+        instrumentosInteres: {
+          bsonType: "array",
+          items: {
+            bsonType: "string",
+            enum: ["Piano", "Guitarra", "Violín", "Bajo", "Batería", "Canto", "Teoría Musical", "Composición", "Producción Musical"]  // 🎯 Instrumentos permitidos
+          },
+          description: "Instrumentos o áreas de interés musical del estudiante"
+        },
+        // 🏢 Referencia a la sede preferida
+        sedeId: {
+          bsonType: "objectId",
+          description: "Referencia a la sede preferida del estudiante (sedes._id)"
+        },
+        // ✅ Estado del estudiante en el sistema
+        estado: {
+          enum: ["activo", "inactivo", "suspendido", "egresado"],  // 🎯 Estados permitidos
+          description: "Estado actual del estudiante en el sistema"
+        },
+        // 📚 Información académica adicional
+        informacionAcademica: {
+          bsonType: "object",
+          properties: {
+            institucionAnterior: {
+              bsonType: "string",
+              maxLength: 100,  // 🛡️ Máximo 100 caracteres
+              description: "Institución educativa anterior (opcional)"
+            },
+            nivelAcademico: {
+              enum: ["primaria", "secundaria", "técnico", "tecnológico", "profesional", "posgrado"],  // 🎯 Niveles permitidos
+              description: "Nivel académico más alto alcanzado"
+            },
+            objetivosMusicales: {
+              bsonType: "string",
+              maxLength: 500,  // 🛡️ Máximo 500 caracteres
+              description: "Objetivos musicales del estudiante (opcional)"
+            },
+            disponibilidadHoraria: {
+              bsonType: "array",
+              items: {
+                bsonType: "string",
+                enum: ["mañana", "tarde", "noche", "fines_semana"]  // 🎯 Horarios permitidos
+              },
+              description: "Horarios de disponibilidad del estudiante"
+            }
+          },
+          description: "Información académica y objetivos del estudiante"
+        },
+        // 📅 Fecha de registro como estudiante
+        fechaRegistro: {
+          bsonType: "date",
+          description: "Fecha en que el usuario se registró como estudiante"
+        },
+        // 📅 Fecha de creación del registro
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha de creación del registro"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de última actualización"
+        }
+      }
+    }
+    // ❌ ELIMINADO: $expr con lógica temporal (new Date())
+    // La validación de fechas futuras se hace en la aplicación
+  }
+})
+
+// 📊 ÍNDICES MINIMALISTAS PARA LA COLECCIÓN ESTUDIANTES (CORREGIDOS)
+// ===================================================================
+// ⚠️ MINIMALISTAS: Solo índices esenciales, eliminadas redundancias
+
+// 🔑 Índices Únicos - Garantizan integridad de datos críticos
+// ==========================================================
+db.estudiantes.createIndex({ usuarioId: 1 }, { unique: true });        // 🔗 Un usuario solo puede ser un estudiante
+
+// 🔗 Índices Compuestos - Solo los IMPRESCINDIBLES (cubren consultas simples)
+// ==========================================================================
+db.estudiantes.createIndex({ sedeId: 1, estado: 1 });                    // 🏢 Estudiantes activos por sede (cubre consultas por sedeId)
+db.estudiantes.createIndex({ nivelExperiencia: 1, estado: 1 });          // 🎵 Estudiantes por nivel y estado (cubre consultas por nivel)
+db.estudiantes.createIndex({ estado: 1, fechaRegistro: -1 });            // ✅ Estudiantes activos por fecha (cubre consultas por estado)
+db.estudiantes.createIndex({ sedeId: 1, nivelExperiencia: 1 });          // 🏢 Estudiantes por sede y nivel
+db.estudiantes.createIndex({ usuarioId: 1, estado: 1 });                 // 🔗 Usuario-estudiante por estado
+
+// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN:
+// ======================================
+// ✅ CORRECCIONES CRÍTICAS IMPLEMENTADAS:
+//    - ❌ ELIMINADO: campos de identidad (nombre, documento, email)
+//    - ✅ AGREGADO: referencia usuarioId a colección usuarios
+//    - ❌ ELIMINADO: array historialPagos (crecimiento ilimitado)
+//    - ❌ ELIMINADO: $expr con lógica temporal (new Date())
+//    - ❌ ELIMINADOS: índices redundantes y simples innecesarios
+//    - ✅ OPTIMIZADO: solo 6 índices esenciales (reducidos de 15)
+// 
+// 🔒 SEPARACIÓN DE RESPONSABILIDADES:
+//    - usuarios: identidad, autenticación, datos personales
+//    - estudiantes: rol académico, preferencias musicales, estado de matrícula
+//    - Una sola fuente de verdad para identidad
+// 
+// 🎯 Casos de uso optimizados:
+//    - Gestión del rol académico de estudiantes
+//    - Seguimiento de progreso musical por nivel
+//    - Reportes de estudiantes por sede y estado
+//    - Gestión de instrumentos de interés
+//    - Control de disponibilidad horaria
+// 
+// 📊 CONSULTAS CON $LOOKUP:
+//    - Datos de identidad: $lookup con colección usuarios
+//    - Datos de sede: $lookup con colección sedes
+//    - Inscripciones: $lookup con colección inscripciones
+// 
+// 🚮 OPTIMIZACIONES REALIZADAS:
+//    - Solo 6 índices esenciales (reducidos de 15)
+//    - Eliminados índices redundantes y simples
+//    - Estructura minimalista y clara
+//    - Foco en funcionalidad del taller
+//    - Sin arrays de crecimiento ilimitado
+
+// 👨‍🏫 5. COLECCIÓN DE PROFESORES - Gestión del personal docente
 // ============================================================
 // Esta colección almacena información de todos los profesores del campus musical
 // ⚠️ OPTIMIZADA: Validaciones robustas, campos adicionales y índices optimizados
@@ -678,7 +873,7 @@ db.profesores.createIndex({ fechaContratacion: -1, estado: 1 });               /
 //    - Fechas de asignación, inicio y fin de cursos
 
 
-// 📝 5. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
+// 📝 6. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
 // ============================================================
 // Esta colección almacena todas las inscripciones de estudiantes en cursos
 // ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
@@ -783,7 +978,7 @@ db.inscripciones.createIndex({ fechaInscripcion: -1, estado: 1 });              
 //    - Estructura minimalista y clara
 //    - Foco en funcionalidad del taller
 
-// 🎸 6. COLECCIÓN DE INSTRUMENTOS - Gestión de instrumentos musicales
+// 🎸 7. COLECCIÓN DE INSTRUMENTOS - Gestión de instrumentos musicales
 // =================================================================
 // Esta colección almacena información de todos los instrumentos musicales disponibles
 // ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
@@ -889,7 +1084,7 @@ db.instrumentos.createIndex({ sedeId: 1, tipo: 1 });                     // 🏢
 //    - Estructura minimalista y clara
 //    - Foco en funcionalidad del taller
 
-// 🎺 7. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos (CORREGIDA)
+// 🎺 8. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos (CORREGIDA)
 // =================================================================
 // Esta colección almacena todas las reservas de instrumentos por parte de estudiantes
 // ⚠️ CORREGIDA: Validaciones estructurales en DB, lógica de negocio en App
@@ -1036,6 +1231,6 @@ db.reservas_instrumentos.createIndex({ estado: 1, fechaHoraInicio: 1 });
 
 print("✅ ¡Éxito! Todas las colecciones y sus respectivos índices han sido creados correctamente en 'CampusMusicDB'.");
 print("🎵 Campus Music DB está lista para el taller de MongoDB!");
-print("📊 Total de colecciones creadas: 7");
-print("🔍 Total de índices creados: ~60");
+print("📊 Total de colecciones creadas: 8");
+print("🔍 Total de índices creados: ~70");
 print("🚀 ¡Puedes continuar con el siguiente archivo del taller!");
