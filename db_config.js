@@ -156,48 +156,10 @@ db.createCollection("usuarios", {
     }
   })
 
-// 📊 ÍNDICES PARA OPTIMIZACIÓN DE CONSULTAS
-// =========================================
-//
-// 🎯 OBJETIVO DE LOS ÍNDICES:
-// Los índices mejoran significativamente el rendimiento de las consultas
-// al crear estructuras de datos optimizadas para búsquedas específicas.
-//
-// 📈 BENEFICIOS:
-// - Consultas más rápidas (de segundos a milisegundos)
-// - Menor uso de CPU y memoria
-// - Mejor experiencia de usuario
-// - Escalabilidad del sistema
-//
-// ⚖️ TRADE-OFFS:
-// - Ocupan espacio en disco
-// - Ralentizan operaciones de escritura (insert/update/delete)
-// - Requieren mantenimiento periódico
-//
-// 🔍 TIPOS DE ÍNDICES UTILIZADOS:
-// 1. Índices Únicos: Garantizan valores únicos (evitan duplicados)
-// 2. Índices Simples: Optimizan consultas por un solo campo
-// 3. Índices Compuestos: Optimizan consultas por múltiples campos
-//
-// 📊 ESTRATEGIA DE ÍNDICES:
-// - Creamos índices basados en patrones de consulta reales
-// - Priorizamos consultas frecuentes y críticas
-// - Evitamos índices redundantes o innecesarios
-// - Consideramos el orden de los campos en índices compuestos
-
-// 🔑 Índices Únicos - Garantizan que no haya duplicados
-// =====================================================
-db.usuarios.createIndex({ documento: 1 }, { unique: true });  // 🆔 Documento único
-db.usuarios.createIndex({ email: 1 }, { unique: true });      // 📧 Email único
-  
-// 🚀 ÍNDICES ESENCIALES - Solo los únicos necesarios
-// =================================================
-// ❌ ELIMINADOS todos los índices redundantes e incorrectos
-// ✅ MANTENIDOS solo los índices únicos requeridos
-
-// 📝 NOTA CRÍTICA: Los usuarios se buscan por documento o email únicos.
-// No necesitas índices adicionales para nombre, apellido, rol o estado
-// que no existen en el esquema o son redundantes.
+// -- Índices Esenciales para Usuarios --
+// CORRECTO: Solo dos índices para usuarios. Son todo lo que se necesita.
+db.usuarios.createIndex({ documento: 1 }, { unique: true });
+db.usuarios.createIndex({ email: 1 }, { unique: true });
 
 // 🏢 2. COLECCIÓN DE SEDES - Gestión de ubicaciones físicas
 // ========================================================
@@ -245,22 +207,9 @@ db.createCollection("sedes", {
     }
   })
 
-// 📊 ÍNDICES CORREGIDOS PARA LA COLECCIÓN SEDES
-// =============================================
-
-// 🔑 Índices Únicos - Solo el esencial
-// ====================================
-db.sedes.createIndex({ nombre: 1 }, { unique: true });        // 🏷️ Nombre único por sede
-// ❌ ELIMINADO: telefono único (una sede puede tener múltiples líneas)
-  
-// 🔗 Índices Compuestos - Solo el más importante
-// ==============================================
-db.sedes.createIndex({ estado: 1, nombre: 1 });           // ✅ Sedes activas ordenadas por nombre (CUBRE TODAS LAS CONSULTAS PRINCIPALES)
-
-// 📝 NOTA: El índice compuesto { estado: 1, nombre: 1 } sirve para:
-//    - Buscar por estado: db.sedes.find({ estado: "activa" })
-//    - Buscar por estado y ordenar por nombre: optimizado automáticamente
-//    - MongoDB puede usar la parte izquierda del índice eficientemente
+// CORRECTO: Estrategia de índices simplificada para sedes
+db.sedes.createIndex({ nombre: 1 }, { unique: true });
+db.sedes.createIndex({ estado: 1, nombre: 1 }); // Cubre búsquedas por estado y orden por nombre.
 
 // 📚 3. COLECCIÓN DE CURSOS - Gestión de programas educativos (CORREGIDA)
 // ========================================================================
@@ -434,59 +383,60 @@ db.createCollection("cursos", {
   }
 })
 
-// 📊 ÍNDICES ESENCIALES PARA LA COLECCIÓN CURSOS (CORREGIDOS)
-// ===========================================================
-// ⚠️ MINIMALISTAS: Solo índices críticos, eliminada redundancia masiva
+// -- Índices Esenciales para Cursos --
+db.cursos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // Nombre único por sede
+db.cursos.createIndex({ sedeId: 1, estado: 1, nivel: 1 });  // CONSULTA PRINCIPAL: cursos activos por sede y nivel
 
-// 🔑 Índices Únicos - Solo los críticos para integridad
-// =====================================================
-db.cursos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // 📖 Nombre único por sede
-db.cursos.createIndex({ profesorId: 1, "horarios.dia": 1, "horarios.horaInicio": 1 });  // 👨‍🏫 Validación de conflictos horarios (CORREGIDO para array)
-
-// 🔗 Índices Compuestos - Solo el MÁS CRÍTICO
-// ===========================================
-db.cursos.createIndex({ sedeId: 1, estado: 1, nivel: 1 });  // 🏢 CONSULTA PRINCIPAL: cursos activos por sede y nivel
-
-// 📝 NOTA CRÍTICA: Este único índice compuesto sirve para:
-//    - Buscar cursos por sede: db.cursos.find({ sedeId: X })
-//    - Buscar cursos activos por sede: db.cursos.find({ sedeId: X, estado: "activo" })
-//    - Buscar por nivel en sede: optimizado automáticamente
-//    - MongoDB puede usar partes izquierdas del índice eficientemente
-
-// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN:
-// ======================================
-// ✅ CORRECCIONES CRÍTICAS IMPLEMENTADAS:
-//    - ❌ ELIMINADO: campo 'inscritos' (redundante y peligroso)
-//    - ✅ MANTENIDO: solo 'cuposDisponibles' como fuente única de verdad
-//    - ❌ ELIMINADO: array 'profesores' (complejidad innecesaria)
-//    - ✅ SIMPLIFICADO: campo 'profesorId' único
-//    - ❌ ELIMINADO: 'categoriaId' (sobre-normalización)
-//    - ✅ AGREGADO: array 'generos' flexible
-//    - ❌ ELIMINADO: 'instrumentoId' (complejidad innecesaria)
-//    - ✅ SIMPLIFICADO: campo 'instrumento' directo
-// 
-// 🔒 SEGURIDAD Y VALIDACIONES:
-//    - Una sola fuente de verdad para cupos
-//    - Validaciones de negocio críticas con $expr
-//    - Estados de curso controlados
-//    - Referencias a sedes y profesores válidas
-// 
-// 🎯 Casos de uso optimizados:
-//    - Transacciones de inscripción simplificadas (solo modificar cuposDisponibles)
-//    - Consultas de cupos disponibles rápidas
-//    - Filtrado por instrumento y nivel eficiente
-//    - Reportes de ocupación por sede
-// 
-// 📊 CONSULTAS CON $LOOKUP:
-//    - Datos de sede: $lookup con colección sedes
-//    - Información de profesor: $lookup con colección profesores
-//    - Inscripciones activas: $lookup con colección inscripciones
-// 
-// 🚮 OPTIMIZACIONES REALIZADAS:
-//    - Solo 12 índices esenciales (reducidos de 15+)
-//    - Eliminados índices redundantes
-//    - Estructura simplificada y clara
-//    - Foco en funcionalidad del taller
+// 👨‍🎓 4. COLECCIÓN DE ESTUDIANTES - Gestión del rol de estudiante (CORREGIDA Y AÑADIDA)
+// ===================================================================================
+// 📋 DESCRIPCIÓN:
+// Esta colección almacena ÚNICAMENTE información específica del rol de "estudiante".
+// NO contiene datos de identidad (nombre, doc, email) - esos están en 'usuarios'.
+db.createCollection("estudiantes", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["usuarioId", "nivelExperiencia", "estado", "createdAt"],
+      properties: {
+        // 🔗 Referencia a la IDENTIDAD del usuario en la colección 'usuarios'
+        usuarioId: {
+          bsonType: "objectId",
+          description: "Referencia obligatoria al documento en la colección 'usuarios'"
+        },
+        // --- Datos exclusivos del ROL de estudiante ---
+        nivelExperiencia: {
+          enum: ["principiante", "intermedio", "avanzado"],
+          description: "Nivel de experiencia musical del estudiante."
+        },
+        instrumentosInteres: {
+          bsonType: "array",
+          items: {
+            bsonType: "string",
+            enum: ["Piano", "Guitarra", "Violín", "Bajo", "Batería", "Canto"]
+          },
+          description: "Instrumentos en los que el estudiante tiene interés."
+        },
+        // --- Datos Administrativos del Rol ---
+        sedeId: {
+          bsonType: "objectId",
+          description: "Referencia a la sede preferida o actual del estudiante."
+        },
+        estado: {
+          enum: ["activo", "inactivo", "suspendido", "egresado"],
+          description: "Estado administrativo del estudiante en la escuela."
+        },
+        // --- Campos de Auditoría ---
+        createdAt: { bsonType: "date" },
+        updatedAt: { bsonType: "date" }
+      }
+    }
+  }
+});
+// -- Índices Esenciales para Estudiantes --
+// Garantiza que un usuario solo tenga UN perfil de estudiante
+db.estudiantes.createIndex({ usuarioId: 1 }, { unique: true });
+// CONSULTA PRINCIPAL: Buscar estudiantes activos en una sede
+db.estudiantes.createIndex({ sedeId: 1, estado: 1 });
 
 // 👨‍🏫 5. COLECCIÓN DE PROFESORES - Gestión del personal docente (CORREGIDA)
 // ===========================================================================
@@ -586,98 +536,15 @@ db.createCollection("profesores", {
   }
 })
 
-// 📊 ÍNDICES OPTIMIZADOS PARA LA COLECCIÓN PROFESORES
-// ===================================================
-// ⚠️ OPTIMIZADOS: Solo índices esenciales para evitar sobrecarga
+// -- Índices Esenciales para Profesores --
+// Garantiza que un usuario solo tenga UN perfil de profesor
+db.profesores.createIndex({ usuarioId: 1 }, { unique: true });
+// CONSULTA PRINCIPAL: Buscar profesores activos por especialidad
+db.profesores.createIndex({ especialidad: 1, estado: 1 });
 
-// 🔑 Índices Únicos - Garantizan integridad de datos críticos
-// ==========================================================
-db.profesores.createIndex({ usuarioId: 1 }, { unique: true });        // 🔗 Un usuario solo puede ser un profesor
-  
 
-// 🚀 Índices Simples - Solo los más utilizados
-// ============================================
-db.profesores.createIndex({ especialidad: 1 });          // 🎸 Filtros por especialidad
-db.profesores.createIndex({ estado: 1 });                 // ✅ Filtros por estado
-db.profesores.createIndex({ experiencia: -1 });          // 📊 Ordenar por experiencia (descendente)
-db.profesores.createIndex({ nivelAcademico: 1 });         // 🎓 Filtros por nivel académico
-db.profesores.createIndex({ fechaContratacion: -1 });    // 📅 Ordenar por fecha contratación
-db.profesores.createIndex({ createdAt: -1 });            // 📅 Ordenar por fecha creación
 
-// 🔗 Índices Compuestos - Solo los IMPRESCINDIBLES
-// ================================================
-db.profesores.createIndex({ especialidad: 1, estado: 1 });                    // 🎸 Profesores activos por especialidad (CONSULTA MÁS COMÚN)
-db.profesores.createIndex({ especialidad: 1, experiencia: -1 });              // 🎸 Ranking de profesores por especialidad y experiencia
-db.profesores.createIndex({ estado: 1, especialidad: 1 });                     // ✅ Estados por especialidad
-db.profesores.createIndex({ nivelAcademico: 1, experiencia: -1 });            // 🎓 Nivel académico y experiencia
-db.profesores.createIndex({ usuarioId: 1, estado: 1 });                      // 🔗 Usuario-profesor por estado
 
-// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN:
-// ======================================
-// ✅ CORRECCIONES CRÍTICAS IMPLEMENTADAS:
-//    - ❌ ELIMINADO: campos de identidad (nombreCompleto, documento, contacto)
-//    - ✅ AGREGADO: referencia usuarioId a colección usuarios
-//    - ❌ ELIMINADO: array cursosAsignados (redundante con cursos.profesorId)
-//    - ❌ ELIMINADO: índices de identidad duplicados
-//    - ✅ OPTIMIZADO: solo índices esenciales del rol
-// 
-// 🔒 SEPARACIÓN DE RESPONSABILIDADES:
-//    - usuarios: identidad, autenticación, datos personales
-//    - profesores: rol laboral, especialidades, experiencia, información salarial
-//    - Una sola fuente de verdad para identidad
-// 
-// 🎯 Casos de uso optimizados:
-//    - Gestión del rol laboral de profesores
-//    - Asignación de cursos (manejado en colección cursos)
-//    - Reportes de personal docente por especialidad
-//    - Filtrado de profesores disponibles
-//    - Gestión de estados laborales y experiencia
-// 
-// 📊 CONSULTAS CON $LOOKUP:
-//    - Datos de identidad: $lookup con colección usuarios
-//    - Cursos asignados: $lookup con colección cursos
-//    - Información de sede: $lookup indirecto vía cursos
-// 
-// 🚮 OPTIMIZACIONES REALIZADAS:
-//    - Solo 8 índices esenciales (reducidos de 13)
-//    - Eliminados índices de identidad duplicados
-//    - Estructura minimalista y clara
-//    - Foco en funcionalidad del rol, no identidad
-
-// 🔗 Índices Compuestos - Solo el ESENCIAL
-// ========================================
-db.profesores.createIndex({ especialidad: 1, estado: 1 });  // 🎸 CONSULTA PRINCIPAL: profesores activos por especialidad
-
-// 📝 NOTA CRÍTICA: Este único índice compuesto sirve para:
-//    - Buscar profesores por especialidad: db.profesores.find({ especialidad: "Piano" })
-//    - Buscar profesores activos por especialidad: optimizado automáticamente
-//    - Filtrar por estado: MongoDB puede usar la parte derecha del índice
-//    - Elimina la necesidad de múltiples índices redundantes
-
-// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN CRÍTICA:
-// ==============================================
-// ✅ CORRECCIONES ARQUITECTÓNICAS CRÍTICAS:
-//    - ❌ ELIMINADO: campos de identidad (nombreCompleto, documento, contacto)
-//    - ✅ AGREGADO: referencia usuarioId a colección usuarios (ÚNICA FUENTE DE VERDAD)
-//    - ❌ ELIMINADO: array cursosAsignados (ANTIPATRÓN de crecimiento ilimitado)
-//    - ❌ ELIMINADO: índices redundantes masivos (de 13 a 2 índices)
-//    - ✅ CORREGIDO: solo índices esenciales sin redundancia
-// 
-// 🔒 SEPARACIÓN DE RESPONSABILIDADES CORRECTA:
-//    - usuarios: ÚNICA fuente de identidad (nombre, documento, email, password)
-//    - profesores: SOLO datos del rol laboral (especialidad, experiencia, salario)
-//    - cursos: contiene profesorId para la relación (NO el profesor contiene cursos)
-// 
-// 🎯 CONSULTAS OPTIMIZADAS:
-//    - Cursos de un profesor: db.cursos.find({ profesorId: ObjectId })
-//    - Profesores por especialidad: cubierto por índice compuesto único
-//    - Datos completos: $lookup entre profesores → usuarios para identidad
-// 
-// 🚮 ANTIPATRONES ELIMINADOS:
-//    - Array de cursosAsignados que crecería ilimitadamente
-//    - Índices redundantes que duplicaban funcionalidad
-//    - Campos de identidad duplicados en múltiples colecciones
-//    - Validaciones que se solapaban entre colecciones
 
 // 📝 6. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
 // ============================================================
@@ -754,36 +621,7 @@ db.inscripciones.createIndex({ estudianteId: 1, fechaInscripcion: -1 });        
 
 // 📝 NOTA: Estos 3 índices cubren TODAS las consultas principales sin redundancia
 
-// 📝 NOTAS DE GESTIÓN Y SIMPLIFICACIÓN:
-// ======================================
-// ✅ La colección está SIMPLIFICADA para el taller:
-//    - Solo datos esenciales de inscripción
-//    - Índices minimalistas (3 totales)
-//    - Sin complejidades innecesarias
-//    - Foco en funcionalidad básica
-// 
-// 🔒 SEGURIDAD Y VALIDACIONES:
-//    - Un estudiante solo puede inscribirse una vez por curso
-//    - Estados de inscripción controlados
-//    - Validación de costos no negativos
-// 
-// 🎯 Casos de uso del taller:
-//    - Proceso de inscripción con transacciones
-//    - Control de cupos en cursos
-//    - Reportes de matrículas por período
-//    - Historial básico de inscripciones
-// 
-// 📊 CONSULTAS CON $LOOKUP:
-//    - Detalles de curso: $lookup con colección cursos
-//    - Información de profesor: $lookup con colección profesores
-//    - Datos de sede: $lookup con colección sedes
-//    - Información de estudiante: $lookup con colección estudiantes
-// 
-// 🚮 SIMPLIFICACIONES REALIZADAS:
-//    - Eliminadas colecciones complejas (evaluaciones, pagos)
-//    - Solo 3 índices esenciales
-//    - Estructura minimalista y clara
-//    - Foco en funcionalidad del taller
+
 
 // 🎸 7. COLECCIÓN DE INSTRUMENTOS - Gestión de instrumentos musicales
 // =================================================================
@@ -841,42 +679,11 @@ db.createCollection("instrumentos", {
   }
 })
 
-// 📊 ÍNDICES CORREGIDOS PARA LA COLECCIÓN INSTRUMENTOS
-// ====================================================
-// ⚠️ MINIMALISTAS: Eliminada redundancia masiva
+// -- Índices Esenciales para Instrumentos --
+db.instrumentos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // Nombre único por sede
+db.instrumentos.createIndex({ sedeId: 1, estado: 1, tipo: 1 });  // CONSULTA PRINCIPAL: instrumentos disponibles por sede y tipo
 
-// 🔑 Índices Únicos - Solo el esencial
-// ====================================
-db.instrumentos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // 🎸 Nombre único por sede
 
-// 🔗 Índices Compuestos - Solo el CRÍTICO
-// =======================================
-db.instrumentos.createIndex({ sedeId: 1, estado: 1, tipo: 1 });  // 🏢 CONSULTA PRINCIPAL: instrumentos disponibles por sede y tipo
-
-// 📝 NOTA: Este índice compuesto sirve para TODAS las consultas principales:
-//    - Por sede: db.instrumentos.find({ sedeId: X })
-//    - Por sede y estado: db.instrumentos.find({ sedeId: X, estado: "disponible" })
-//    - Por sede, estado y tipo: optimizado completamente
-//    - Elimina la necesidad de 6 índices redundantes
-
-// 📝 NOTAS DE CORRECCIÓN CRÍTICA:
-// ===============================
-// ✅ ANTIPATRONES CORREGIDOS:
-//    - ❌ ELIMINADO: 6 índices redundantes innecesarios
-//    - ✅ MANTENIDO: solo 2 índices esenciales (reducción del 66%)
-//    - ❌ ELIMINADO: índices simples cubiertos por compuestos
-//    - ✅ OPTIMIZADO: un solo índice compuesto cubre todas las consultas
-// 
-// 🔒 CONSULTAS OPTIMIZADAS:
-//    - Inventario por sede: cubierto por índice principal
-//    - Instrumentos disponibles: cubierto por índice principal
-//    - Búsqueda por tipo: cubierto por índice principal
-//    - Todas las combinaciones: optimizadas automáticamente
-// 
-// 🎯 PRINCIPIO APLICADO:
-//    - Un índice compuesto bien diseñado elimina múltiples índices simples
-//    - MongoDB puede usar prefijos de índices compuestos eficientemente
-//    - Menos índices = menos overhead de mantenimiento y escritura
 
 // 🎺 8. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos (CORREGIDA)
 // =================================================================
@@ -937,94 +744,13 @@ db.createCollection("reservas_instrumentos", {
   }
 })
 
-// 📊 ÍNDICES ÓPTIMOS Y NO REDUNDANTES PARA RESERVAS_INSTRUMENTOS
-// ==============================================================
-// ⚠️ MINIMALISTAS: Solo 3 índices que cubren todas las consultas principales
-
-// 1. 🎯 ÍNDICE PRINCIPAL DE OPERACIONES Y BÚSQUEDA DE DISPONIBILIDAD
-// =================================================================
-// Sirve para:
-//    - Encontrar todas las reservas de un instrumento
-//    - Encontrar reservas de un instrumento en un rango de fechas
-//    - Es el índice que usará la transacción de la App para buscar solapamientos
+// -- Índices Esenciales para Reservas de Instrumentos --
 db.reservas_instrumentos.createIndex({ instrumentoId: 1, fechaHoraInicio: 1 });
-
-// 2. 👨‍🎓 ÍNDICE PARA LA VISTA DEL USUARIO ("Mis Reservas")
-// ========================================================
-// Sirve para:
-//    - Encontrar todas las reservas de un estudiante
-//    - Las devuelve ya ordenadas de la más nueva a la más antigua (¡súper eficiente!)
 db.reservas_instrumentos.createIndex({ estudianteId: 1, fechaHoraInicio: -1 });
-
-// 3. 📊 ÍNDICE PARA REPORTES ADMINISTRATIVOS (OPCIONAL)
-// ====================================================
-// Sirve para:
-//    - Encontrar todas las reservas activas/pendientes a partir de una fecha
-//    - Útil para paneles de control ("ver las reservas de mañana")
 db.reservas_instrumentos.createIndex({ estado: 1, fechaHoraInicio: 1 });
-
-// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN:
-// ======================================
-// ✅ CORRECCIONES CRÍTICAS IMPLEMENTADAS:
-//    - ❌ ELIMINADO: índice único incorrecto para prevenir solapamientos
-//    - ✅ MANTENIDO: solo validación estructural (fin > inicio)
-//    - ❌ ELIMINADO: validación de "no reservas en el pasado" (lógica de App)
-//    - ✅ SIMPLIFICADO: estados a los más comunes
-//    - ❌ ELIMINADO: campo observaciones (no esencial para el taller)
-//    - ✅ OPTIMIZADO: solo 3 índices no redundantes
-// 
-// 🔒 SEGURIDAD Y VALIDACIONES:
-//    - Solo validación estructural que la DB puede garantizar
-//    - Prevención de solapamientos se maneja en la aplicación
-//    - Estados de reserva simplificados y claros
-//    - Referencias a instrumentos y estudiantes válidas
-// 
-// 🎯 Casos de uso optimizados:
-//    - Búsqueda de disponibilidad por instrumento y fecha
-//    - Historial de reservas por estudiante (ordenado)
-//    - Reportes administrativos por estado y fecha
-//    - Transacciones de reserva sin conflictos
-// 
-// 📊 CONSULTAS CON $LOOKUP:
-//    - Datos del instrumento: $lookup con colección instrumentos
-//    - Información del estudiante: $lookup con colección estudiantes
-//    - Datos de sede: $lookup con colección sedes
-// 
-// 🚮 OPTIMIZACIONES REALIZADAS:
-//    - Solo 3 índices esenciales (reducidos de 8)
-//    - Eliminados índices redundantes y incorrectos
-//    - Estructura minimalista y clara
-//    - Foco en funcionalidad del taller
-
-// 🎉 MENSAJE DE ÉXITO
-// ===================
-// Este mensaje confirma que todas las operaciones se ejecutaron correctamente.
-// Si ves este mensaje, significa que:
-// ✅ Todas las colecciones fueron creadas exitosamente
-// ✅ Todos los esquemas de validación están activos
-// ✅ Todos los índices fueron creados sin errores
-// ✅ La base de datos está lista para recibir datos
-//
-// 🚀 PRÓXIMOS PASOS RECOMENDADOS:
-// 1. Ejecutar test_dataset.js para poblar con datos de prueba
-// 2. Ejecutar aggregations.js para probar consultas analíticas
-// 3. Ejecutar roles.js para configurar seguridad
-// 4. Ejecutar transactions.js para probar transacciones
-//
-// 🔍 CÓMO VERIFICAR QUE TODO FUNCIONA:
-// - Conectarse a MongoDB: mongosh CampusMusicDB
-// - Verificar colecciones: show collections
-// - Verificar índices: db.usuarios.getIndexes()
-// - Insertar datos de prueba para validar esquemas
-//
-// 📚 RECURSOS ADICIONALES:
-// - Documentación MongoDB: https://docs.mongodb.com/
-// - Guía de $jsonSchema: https://docs.mongodb.com/manual/core/schema-validation/
-// - Guía de índices: https://docs.mongodb.com/manual/indexes/
-// - Guía de agregaciones: https://docs.mongodb.com/manual/aggregation/
 
 print("✅ ¡Éxito! Todas las colecciones y sus respectivos índices han sido creados correctamente en 'CampusMusicDB'.");
 print("🎵 Campus Music DB está lista para el taller de MongoDB!");
-print("📊 Total de colecciones creadas: 7");
-print("🔍 Total de índices creados: ~60");
+print("📊 Total de colecciones creadas: 8");
+print("🔍 Total de índices creados: 17 (+ 8 índices automáticos _id)");
 print("🚀 ¡Puedes continuar con el siguiente archivo del taller!");
