@@ -478,3 +478,109 @@ db.profesores.createIndex({ fechaContratacion: -1, estado: 1 });               /
 //    - Historial completo de asignaciones de cursos
 //    - Estados de asignación (activo, finalizado, pendiente, cancelado)
 //    - Fechas de asignación, inicio y fin de cursos
+
+
+// 📝 5. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
+// ============================================================
+// Esta colección almacena todas las inscripciones de estudiantes en cursos
+// ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
+// 🔒 SEGURIDAD: Control de cupos y estados de inscripción
+
+db.createCollection("inscripciones", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["estudianteId", "cursoId", "fechaInscripcion", "costo", "estado", "createdAt", "updatedAt"],
+      properties: {
+        // 👨‍🎓 Referencia al estudiante inscrito
+        estudianteId: {
+          bsonType: "objectId",
+          description: "Referencia al estudiante inscrito (estudiantes._id)"
+        },
+        // 📚 Referencia al curso en el que se inscribe
+        cursoId: {
+          bsonType: "objectId",
+          description: "Referencia al curso en el que se inscribe (cursos._id)"
+        },
+        // 📅 Fecha en que se realizó la inscripción (HISTÓRICO)
+        fechaInscripcion: {
+          bsonType: "date",
+          description: "Fecha en que se realizó la inscripción (dato histórico)"
+        },
+        // 💰 Costo de la inscripción (HISTÓRICO - puede cambiar en el futuro)
+        costo: {
+          bsonType: "number",
+          minimum: 0,  // 🛡️ No puede ser negativo
+          description: "Costo de la inscripción al momento de inscribirse (dato histórico)"
+        },
+        // ✅ Estado actual de la inscripción
+        estado: {
+          enum: ["activa", "cancelada", "finalizada", "pendiente", "rechazada"],  // 🎯 Estados permitidos
+          description: "Estado actual de la inscripción"
+        },
+        // 📝 Observaciones adicionales
+        notas: {
+          bsonType: "string",
+          maxLength: 500,  // 🛡️ Máximo 500 caracteres
+          description: "Observaciones adicionales sobre la inscripción"
+        },
+        // 📅 Fecha de creación del registro
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha de creación del registro"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de última actualización"
+        }
+      }
+    }
+  }
+})
+
+// 📊 ÍNDICES MINIMALISTAS PARA LA COLECCIÓN INSCRIPCIONES
+// =======================================================
+// ⚠️ SIMPLIFICADOS: Solo índices esenciales para el taller
+
+// 🔑 Índices Únicos - Garantizan integridad de datos críticos
+// ==========================================================
+db.inscripciones.createIndex({ estudianteId: 1, cursoId: 1 }, { unique: true });  // 👨‍🎓 Un estudiante solo puede inscribirse una vez por curso
+
+// 🔗 Índices Compuestos - Solo los IMPRESCINDIBLES
+// ================================================
+db.inscripciones.createIndex({ cursoId: 1, estado: 1 });                           // 📚 Inscripciones activas por curso (CONSULTA MÁS COMÚN)
+db.inscripciones.createIndex({ estudianteId: 1, fechaInscripcion: -1 });           // 👨‍🎓 Historial de inscripciones por estudiante
+db.inscripciones.createIndex({ fechaInscripcion: -1, estado: 1 });                   // 📅 Inscripciones recientes por estado (REPORTES)
+
+// 📝 NOTAS DE GESTIÓN Y SIMPLIFICACIÓN:
+// ======================================
+// ✅ La colección está SIMPLIFICADA para el taller:
+//    - Solo datos esenciales de inscripción
+//    - Índices minimalistas (3 totales)
+//    - Sin complejidades innecesarias
+//    - Foco en funcionalidad básica
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Un estudiante solo puede inscribirse una vez por curso
+//    - Estados de inscripción controlados
+//    - Validación de costos no negativos
+// 
+// 🎯 Casos de uso del taller:
+//    - Proceso de inscripción con transacciones
+//    - Control de cupos en cursos
+//    - Reportes de matrículas por período
+//    - Historial básico de inscripciones
+// 
+// 📊 CONSULTAS CON $LOOKUP:
+//    - Detalles de curso: $lookup con colección cursos
+//    - Información de profesor: $lookup con colección profesores
+//    - Datos de sede: $lookup con colección sedes
+//    - Información de estudiante: $lookup con colección estudiantes
+// 
+// 🚮 SIMPLIFICACIONES REALIZADAS:
+//    - Eliminadas colecciones complejas (evaluaciones, pagos)
+//    - Solo 3 índices esenciales
+//    - Estructura minimalista y clara
+//    - Foco en funcionalidad del taller
