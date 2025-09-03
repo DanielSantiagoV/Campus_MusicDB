@@ -14,7 +14,8 @@
 // - Manejar transacciones y operaciones complejas
 //
 // 🏗️ ARQUITECTURA DE LA BASE DE DATOS:
-// - 7 colecciones principales interrelacionadas
+// - 8 colecciones principales interrelacionadas
+// - Separación clara entre IDENTIDAD (usuarios) y ROLES (estudiantes/profesores)
 // - Validaciones a nivel de documento y colección
 // - Índices simples, compuestos y únicos
 // - Referencias mediante ObjectId para integridad referencial
@@ -487,11 +488,42 @@ db.cursos.createIndex({ sedeId: 1, estado: 1, nivel: 1 });  // 🏢 CONSULTA PRI
 //    - Estructura simplificada y clara
 //    - Foco en funcionalidad del taller
 
-// 👨‍🏫 4. COLECCIÓN DE PROFESORES - Gestión del personal docente
-// ============================================================
-// Esta colección almacena información de todos los profesores del campus musical
-// ⚠️ OPTIMIZADA: Validaciones robustas, campos adicionales y índices optimizados
-// 🔒 SEGURIDAD: Información sensible manejada con control de acceso
+// 👨‍🏫 5. COLECCIÓN DE PROFESORES - Gestión del personal docente (CORREGIDA)
+// ===========================================================================
+// 
+// 📋 DESCRIPCIÓN:
+// Esta colección almacena ÚNICAMENTE información específica del rol de "profesor".
+// NO contiene datos de identidad (nombre, documento, email) - esos están en 'usuarios'.
+// Es una colección de rol que extiende la información de un usuario que es profesor.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Gestión del rol laboral de profesores
+// - Seguimiento de especialidades y experiencia
+// - Control de asignaciones de cursos
+// - Gestión de información salarial
+// - Estados laborales del personal docente
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Referencia única a usuario (usuarioId)
+// - Especialidades válidas coherentes con cursos
+// - Estados laborales controlados
+// - Validación de experiencia realista
+//
+// 💡 DECISIÓN DE DISEÑO CORREGIDA:
+// ✅ SEPARACIÓN DE RESPONSABILIDADES:
+//    - usuarios: identidad, autenticación, datos personales básicos
+//    - profesores: rol laboral, especialidades, experiencia, información salarial
+//    - Una sola fuente de verdad para identidad
+//
+// ✅ ELIMINACIÓN DE DUPLICACIÓN:
+//    - ❌ ELIMINADO: nombreCompleto, documento, contacto
+//    - ✅ AGREGADO: referencia usuarioId a colección usuarios
+//    - Evita inconsistencias y datos obsoletos
+//
+// 📊 RELACIONES:
+// - Referencia a usuario (usuarioId) → colección 'usuarios' (IDENTIDAD)
+// - Referenciado por cursos → colección 'cursos' (profesorId)
+// - Referenciado por inscripciones → $lookup indirecto vía cursos
 
 db.createCollection("profesores", {
   validator: {
@@ -562,7 +594,7 @@ db.createCollection("profesores", {
 // ==========================================================
 db.profesores.createIndex({ usuarioId: 1 }, { unique: true });        // 🔗 Un usuario solo puede ser un profesor
   
-<<<<<<< HEAD
+
 // 🚀 Índices Simples - Solo los más utilizados
 // ============================================
 db.profesores.createIndex({ especialidad: 1 });          // 🎸 Filtros por especialidad
@@ -646,8 +678,6 @@ db.profesores.createIndex({ especialidad: 1, estado: 1 });  // 🎸 CONSULTA PRI
 //    - Índices redundantes que duplicaban funcionalidad
 //    - Campos de identidad duplicados en múltiples colecciones
 //    - Validaciones que se solapaban entre colecciones
-
-
 
 // 📝 6. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
 // ============================================================
@@ -995,6 +1025,6 @@ db.reservas_instrumentos.createIndex({ estado: 1, fechaHoraInicio: 1 });
 
 print("✅ ¡Éxito! Todas las colecciones y sus respectivos índices han sido creados correctamente en 'CampusMusicDB'.");
 print("🎵 Campus Music DB está lista para el taller de MongoDB!");
-print("📊 Total de colecciones creadas: 8");
-print("🔍 Total de índices creados: ~70");
+print("📊 Total de colecciones creadas: 7");
+print("🔍 Total de índices creados: ~60");
 print("🚀 ¡Puedes continuar con el siguiente archivo del taller!");
