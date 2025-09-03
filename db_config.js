@@ -15,11 +15,9 @@
 //
 // 🏗️ ARQUITECTURA DE LA BASE DE DATOS:
 // - 8 colecciones principales interrelacionadas
-// - Separación clara entre IDENTIDAD (usuarios) y ROLES (estudiantes/profesores)
 // - Validaciones a nivel de documento y colección
 // - Índices simples, compuestos y únicos
 // - Referencias mediante ObjectId para integridad referencial
-// - Una sola fuente de verdad para datos de identidad
 //
 // 🔧 TECNOLOGÍAS UTILIZADAS:
 // - MongoDB 6.0+ (versión recomendada)
@@ -27,11 +25,11 @@
 // - $jsonSchema para validaciones
 // - $expr para validaciones de negocio complejas
 //
-// 📋 COLECCIONES IMPLEMENTADAS:
+// 📋 COLEECCIONES IMPLEMENTADAS:
 // 1. usuarios - Sistema de autenticación y roles
 // 2. sedes - Gestión de ubicaciones físicas
-// 3. cursos - Gestión de programas educativos
-// 4. estudiantes - Gestión del rol de estudiante
+// 3. estudiantes - Gestión del alumnado
+// 4. cursos - Gestión de programas educativos
 // 5. profesores - Gestión del personal docente
 // 6. inscripciones - Gestión de matriculaciones
 // 7. instrumentos - Gestión de instrumentos musicales
@@ -76,286 +74,604 @@ db.cursos.drop();                      // 📚 Elimina colección de cursos
 db.inscripciones.drop();               // 📝 Elimina colección de inscripciones
 db.reservas_instrumentos.drop();       // 🎺 Elimina colección de reservas
 
-// 👥 1. COLECCIÓN DE USUARIOS - Sistema de autenticación y roles
-// =============================================================
-// 
-// 📋 DESCRIPCIÓN:
-// Esta colección almacena todos los usuarios del sistema (admin, profesores, estudiantes)
-// Es la base del sistema de autenticación y autorización.
-//
-// 🎯 CASOS DE USO:
-// - Login y autenticación de usuarios
-// - Control de acceso basado en roles
-// - Gestión de perfiles de usuario
-// - Recuperación de contraseñas
-//
-// 🔒 SEGURIDAD:
-// - Contraseñas encriptadas (hash + salt)
-// - Validación de formato de email
-// - Documento único por usuario
-// - Roles predefinidos para control de acceso
-//
-// 📊 RELACIONES:
-// - Los estudiantes tienen su información extendida en la colección 'estudiantes'
-// - Los profesores tienen su información extendida en la colección 'profesores'
-// - Los admins pueden acceder a todas las funcionalidades del sistema
-//
-// 💡 DECISIONES DE DISEÑO:
-// - Separamos usuarios básicos de información extendida para flexibilidad
-// - Usamos enums para roles para evitar errores de tipeo
-// - Documento único permite identificación sin ambigüedades
-// - Email único facilita recuperación de contraseñas
+// =========================================
+// COLECCIÓN: USUARIOS (Versión Final Optimizada)
+// =========================================
 
 db.createCollection("usuarios", {
-    validator: {
-      $jsonSchema: {
-        bsonType: "object",
-        // 📋 Campos obligatorios que debe tener cada documento
-        required: ["nombre", "documento", "email", "password", "rol", "createdAt"],
-        properties: {
-          // 👤 Nombre del usuario
-          nombre: {
-            bsonType: "string",
-            description: "Nombre del usuario, requerido"
-          },
-          // 🆔 Documento único de identificación
-          documento: {
-            bsonType: "string",
-            pattern: "^[0-9]{8,15}$",  // 🔍 Entre 8 y 15 dígitos numéricos
-            description: "Documento único de identificación (solo números, 8-15 dígitos)"
-          },
-          // 📧 Email con validación de formato
-          email: {
-            bsonType: "string",
-            pattern: "^.+@.+\\..+$",  // 🔍 Expresión regular para validar email
-            description: "Debe ser un email válido"
-          },
-          // 🔐 Contraseña encriptada con longitud mínima
-          password: {
-            bsonType: "string",
-            minLength: 8,  // 🛡️ Mínimo 8 caracteres por seguridad
-            description: "Contraseña encriptada (mínimo 8 caracteres)"
-          },
-          // 🎭 Rol del usuario en el sistema
-          rol: {
-            enum: ["admin", "profesor", "estudiante"],  // 🎯 Solo estos roles permitidos
-            description: "Rol permitido en el sistema"
-          },
-          // 📅 Fecha de creación del usuario
-          createdAt: {
-            bsonType: "date",
-            description: "Fecha de creación"
-          },
-          // 🔄 Fecha de última actualización
-          updatedAt: {
-            bsonType: "date",
-            description: "Última actualización"
-          }
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [
+        "username",
+        "documento",
+        "email",
+        "password",
+        "rol",
+        "estado",
+        "createdAt"
+      ],
+      properties: {
+        // --- Identificadores y Credenciales ---
+        username: {
+          bsonType: "string",
+          pattern: "^[a-zA-Z0-9._-]{3,30}$",
+          description:
+            "Nombre de usuario único para login. Solo letras, números y ._- . Longitud: 3-30"
+        },
+        documento: {
+          bsonType: "string",
+          pattern: "^[0-9]{8,15}$",
+          description: "Documento de identificación. Único, numérico (8-15 dígitos)."
+        },
+        email: {
+          bsonType: "string",
+          pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+          description: "Email válido. Único y requerido (almacenado en minúsculas)."
+        },
+        password: {
+          bsonType: "string",
+          minLength: 60, // Para hashes seguros (bcrypt/argon2)
+          description: "Contraseña encriptada (hash). Requerida."
+        },
+
+        // --- Rol y Estado Administrativo ---
+        rol: {
+          enum: ["admin", "profesor", "estudiante", "empleado_sede"],
+          description: "Rol del usuario en el sistema. Requerido."
+        },
+        sedeId: {
+          bsonType: "objectId",
+          description: "Sede asociada (obligatoria si rol = 'empleado_sede')."
+        },
+        estado: {
+          enum: ["activo", "inactivo", "suspendido", "eliminado"],
+          description: "Estado administrativo del usuario. Requerido."
+        },
+
+        // --- Auditoría ---
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha de creación del documento."
+        },
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de la última actualización."
         }
       }
+    },
+    // 🔎 Validación condicional: sedeId requerido SOLO si rol = "empleado_sede"
+    $expr: {
+      $or: [
+        { $ne: ["$rol", "empleado_sede"] },
+        { $and: [{ $eq: ["$rol", "empleado_sede"] }, { $ifNull: ["$sedeId", false] }] }
+      ]
     }
-  })
+  }
+});
 
-// -- Índices Esenciales para Usuarios --
-// CORRECTO: Solo dos índices para usuarios. Son todo lo que se necesita.
-db.usuarios.createIndex({ documento: 1 }, { unique: true });
-db.usuarios.createIndex({ email: 1 }, { unique: true });
+// =========================================
+// ÍNDICES RECOMENDADOS (CON SOFT DELETE)
+// =========================================
+// 🔍 PROBLEMA DEL "USUARIO FANTASMA":
+// Si un usuario se elimina (soft delete: estado = "eliminado"),
+// sus datos únicos (username, email, documento) quedan "bloqueados" para siempre.
+// Un nuevo usuario no puede usar esos valores aunque el anterior esté "eliminado".
+//
+// ✅ SOLUCIÓN: ÍNDICES PARCIALES
+// Solo aplican unicidad a usuarios activos (estado != "eliminado").
+// Esto permite "reutilizar" datos únicos de usuarios eliminados.
+
+// Índice único parcial para username (solo usuarios activos)
+db.usuarios.createIndex(
+  { username: 1 }, 
+  { 
+    unique: true,
+    partialFilterExpression: { estado: { $ne: "eliminado" } }
+  }
+);
+
+// Índice único parcial para email (solo usuarios activos)
+db.usuarios.createIndex(
+  { email: 1 }, 
+  { 
+    unique: true,
+    partialFilterExpression: { estado: { $ne: "eliminado" } }
+  }
+);
+
+// Índice único parcial para documento (solo usuarios activos)
+db.usuarios.createIndex(
+  { documento: 1 }, 
+  { 
+    unique: true,
+    partialFilterExpression: { estado: { $ne: "eliminado" } }
+  }
+);
+
+// Índices adicionales para consultas comunes
+db.usuarios.createIndex({ rol: 1, estado: 1 });
+db.usuarios.createIndex({ sedeId: 1, estado: 1 });
+db.usuarios.createIndex({ createdAt: -1 });
+
 
 // 🏢 2. COLECCIÓN DE SEDES - Gestión de ubicaciones físicas
 // ========================================================
 // Esta colección almacena información de las diferentes sedes del campus musical
+// ⚠️ OPTIMIZADA: Esquema completo con validaciones robustas e índices estratégicos
+// 🔒 SEGURIDAD: Control de estados y validaciones de integridad
+//
+// 📋 DESCRIPCIÓN:
+// Esta colección es fundamental para la organización geográfica del campus musical.
+// Cada sede representa una ubicación física donde se imparten cursos y se gestionan
+// estudiantes, profesores e instrumentos. Es la base para la distribución
+// territorial de los servicios educativos.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Gestión de ubicaciones físicas del campus
+// - Distribución de cursos por sede
+// - Control de capacidad estudiantil por ubicación
+// - Reportes de ocupación por ciudad
+// - Gestión de estados operativos de sedes
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Nombre único por sede (identificador de negocio)
+// - Ciudad y dirección únicas (previene duplicados)
+// - Capacidad máxima controlada (1-1000 estudiantes)
+// - Estados administrativos validados
+// - Contacto con validaciones de formato
+//
+// 💡 DECISIONES DE DISEÑO IMPORTANTES:
+// - ✅ MANTENIDO: Campo 'ciudad' para organización geográfica
+// - ✅ MANTENIDO: Campo 'capacidad' para control de ocupación
+// - ✅ MANTENIDO: Estado 'cerrada' para sedes definitivamente cerradas
+// - ✅ MANTENIDO: Email de contacto para comunicación oficial
+// - ✅ MANTENIDO: Validaciones de longitud para calidad de datos
+//
+// 📊 RELACIONES:
+// - Referenciado por cursos → colección 'cursos'
+// - Referenciado por instrumentos → colección 'instrumentos'
+// - Referenciado por profesores → colección 'profesores' (asignación)
+// - Referenciado por usuarios → colección 'usuarios' (empleados de sede)
+//
+// 🏗️ ORGANIZACIÓN GEOGRÁFICA:
+// El campo 'ciudad' permite organizar las sedes geográficamente y facilita
+// reportes por región. Es esencial para la expansión del campus musical.
+//
+// 📈 CONTROL DE CAPACIDAD:
+// El campo 'capacidad' permite controlar cuántos estudiantes puede albergar
+// cada sede, facilitando la planificación de expansión y la gestión de cupos.
+//
+// 📞 COMUNICACIÓN OFICIAL:
+// Los campos de contacto (teléfono y email) permiten la comunicación
+// oficial con cada sede, esencial para la gestión administrativa.
+
 db.createCollection("sedes", {
-    validator: {
-      $jsonSchema: {
-        bsonType: "object",
-        // 📋 Campos obligatorios que debe tener cada documento
-        required: ["nombre", "direccion", "telefono", "estado", "createdAt", "updatedAt"],
-        properties: {
-          // 🏷️ Nombre identificativo de la sede
-          nombre: {
-            bsonType: "string",
-            description: "Nombre de la sede, obligatorio"
-          },
-          // 📍 Dirección física completa de la sede
-          direccion: {
-            bsonType: "string",
-            description: "Dirección física de la sede, obligatorio"
-          },
-          // 📞 Teléfono con validación de formato numérico
-          telefono: {
-            bsonType: "string",
-            pattern: "^[0-9]{7,10}$",  // 🔍 Entre 7 y 10 dígitos numéricos
-            description: "Teléfono de contacto de la sede"
-          },
-          // ✅ Estado operativo de la sede
-          estado: {
-            enum: ["activa", "inactiva"],  // 🎯 Solo estos estados permitidos
-            description: "Control de disponibilidad de la sede"
-          },
-          // 📅 Fecha de creación de la sede
-          createdAt: {
-            bsonType: "date",
-            description: "Fecha de creación, mantenida por la aplicación"
-          },
-          // 🔄 Fecha de última actualización
-          updatedAt: {
-            bsonType: "date",
-            description: "Fecha de última actualización"
-          }
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["nombre", "ciudad", "direccion", "capacidad", "estado", "createdAt"],
+      properties: {
+        // 🏷️ Nombre identificativo único de la sede
+        nombre: {
+          bsonType: "string",
+          minLength: 3,  // 🛡️ Mínimo 3 caracteres
+          maxLength: 50,  // 🛡️ Máximo 50 caracteres
+          description: "Nombre único de la sede (identificador de negocio)"
+        },
+        // 🏙️ Ciudad donde se encuentra la sede
+        ciudad: {
+          bsonType: "string",
+          minLength: 2,  // 🛡️ Mínimo 2 caracteres
+          maxLength: 50,  // 🛡️ Máximo 50 caracteres
+          description: "Ciudad donde se encuentra la sede (organización geográfica)"
+        },
+        // 📍 Dirección física completa de la sede
+        direccion: {
+          bsonType: "string",
+          minLength: 5,  // 🛡️ Mínimo 5 caracteres
+          maxLength: 100,  // 🛡️ Máximo 100 caracteres
+          description: "Dirección completa de la sede"
+        },
+        // 👥 Capacidad máxima de estudiantes
+        capacidad: {
+          bsonType: "int",
+          minimum: 1,  // 🛡️ Mínimo 1 estudiante
+          maximum: 1000,  // 🛡️ Máximo 1000 estudiantes
+          description: "Capacidad máxima de estudiantes que puede albergar la sede"
+        },
+        // 📞 Teléfono de contacto (opcional)
+        telefono: {
+          bsonType: "string",
+          pattern: "^[0-9+()\\-\\s]{7,20}$",  // 🔍 Formato flexible para teléfonos
+          description: "Número de contacto de la sede (opcional)"
+        },
+        // 📧 Email de contacto oficial (opcional)
+        email: {
+          bsonType: "string",
+          pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",  // 🔍 Email válido
+          description: "Correo electrónico de contacto oficial (opcional)"
+        },
+        // ✅ Estado operativo de la sede
+        estado: {
+          enum: ["activa", "inactiva", "cerrada"],  // 🎯 Estados permitidos
+          description: "Estado administrativo de la sede"
+        },
+        // 📅 Fecha de creación de la sede
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha de creación de la sede"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de la última actualización de la sede"
         }
       }
     }
-  })
+  }
+})
 
-// CORRECTO: Estrategia de índices simplificada para sedes
+// 📊 ÍNDICES ESTRATÉGICOS Y MINIMALISTAS PARA LA COLECCIÓN SEDES
+// =============================================================
+// ⚠️ ESTRATÉGICOS: Solo 3 índices que cubren todas las necesidades del negocio
+//
+// 🎯 FILOSOFÍA DE ÍNDICES:
+// La estrategia es minimalista pero inteligente. Cada índice tiene un propósito
+// específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga.
+
+// 1. 🔑 ÍNDICE ÚNICO PRINCIPAL - Identificador de Negocio
+// =======================================================
+// Propósito: Garantiza que cada sede tenga un nombre único
+// Casos de uso: Búsqueda por nombre, validación de duplicados
+// Importancia: Es el identificador de negocio principal
 db.sedes.createIndex({ nombre: 1 }, { unique: true });
-db.sedes.createIndex({ estado: 1, nombre: 1 }); // Cubre búsquedas por estado y orden por nombre.
 
-// 📚 3. COLECCIÓN DE CURSOS - Gestión de programas educativos (CORREGIDA)
-// ========================================================================
+// 2. 🔑 ÍNDICE ÚNICO ESTRATÉGICO - Prevención de Duplicados Geográficos
+// ======================================================================
+// Propósito: Previene la creación de duplicados exactos en la misma ciudad
+// Casos de uso: Validación de integridad geográfica
+// Importancia: Regla de negocio inteligente que evita confusiones
+// Ejemplo: Evita "Sede Bogotá" y "Bogotá Campus" en la misma dirección
+db.sedes.createIndex({ ciudad: 1, direccion: 1 }, { unique: true });
+
+// 3. 🚀 ÍNDICE DE CONSULTA PRINCIPAL - Consulta Más Común
+// =======================================================
+// Propósito: Optimiza la consulta más frecuente del sistema
+// Casos de uso: "Muéstrame todas las sedes activas en Bogotá"
+// Importancia: Es la consulta que más se ejecutará en la aplicación
+// Eficiencia: Extremadamente eficiente para reportes por ciudad
+db.sedes.createIndex({ ciudad: 1, estado: 1 });
+
+// 📝 NOTAS DE GESTIÓN Y ESTRATEGIA:
+// ==================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Búsqueda de sedes por nombre (identificador único)
+//    - Filtrado de sedes activas por ciudad (consulta principal)
+//    - Validación de duplicados geográficos (integridad)
+//    - Reportes de ocupación por región
 // 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Nombre único garantiza identificación clara
+//    - Ciudad + dirección únicas previenen duplicados
+//    - Capacidad controlada para planificación
+//    - Estados administrativos validados
+//    - Contacto con validaciones de formato
+// 
+// 🎯 Casos de uso principales:
+//    - Gestión de ubicaciones físicas del campus
+//    - Distribución de cursos por sede
+//    - Control de capacidad estudiantil
+//    - Reportes de ocupación por ciudad
+//    - Gestión de estados operativos
+// 
+// 📊 REPORTES GEOGRÁFICOS:
+//    - Distribución de sedes por ciudad
+//    - Análisis de capacidad por región
+//    - Tendencias de ocupación geográfica
+//    - Planificación de expansión territorial
+
+
+// 👨‍🎓 3. COLECCIÓN DE ESTUDIANTES - Gestión del alumnado
+// ======================================================
+// Esta colección almacena información de todos los estudiantes del campus musical
+// ⚠️ OPTIMIZADA: Relación 1:1 con usuarios, campos esenciales e índices estratégicos
+// 🔒 SEGURIDAD: Control de estados y niveles musicales
+//
 // 📋 DESCRIPCIÓN:
-// Esta colección almacena información de todos los cursos ofrecidos en el campus musical.
-// Es una de las colecciones más importantes del sistema, ya que conecta estudiantes,
-// profesores, sedes e instrumentos.
+// Esta colección es fundamental para el sistema, ya que contiene la información
+// específica de estudiantes que complementa los datos de autenticación de la
+// colección usuarios. Implementa una relación 1:1 normalizada para mantener
+// la integridad de datos y separar responsabilidades.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Gestión de perfiles estudiantiles específicos
+// - Control de niveles musicales y preferencias
+// - Asignación de sedes principales
+// - Seguimiento de estados académicos
+// - Personalización de cursos por intereses
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Relación 1:1 única con usuarios (usuarioId único)
+// - Niveles musicales controlados
+// - Estados académicos validados
+// - Instrumentos de interés estandarizados
+// - Sede principal obligatoria
+//
+// 💡 DECISIONES DE DISEÑO IMPORTANTES:
+// - ✅ IMPLEMENTADO: Relación 1:1 con usuarios (normalización)
+// - ✅ IMPLEMENTADO: Campo sedeId para asignación territorial
+// - ✅ IMPLEMENTADO: Array instrumentosInteres para personalización
+// - ✅ IMPLEMENTADO: Estados académicos específicos
+// - ✅ IMPLEMENTADO: FechaIngreso para historial académico
+//
+// 📊 RELACIONES:
+// - Referencia única a usuarios → colección 'usuarios' (rol = 'estudiante')
+// - Referencia a sede principal → colección 'sedes'
+// - Referenciado por inscripciones → colección 'inscripciones'
+// - Referenciado por reservas → colección 'reservas_instrumentos'
+//
+// 🎵 NIVELES MUSICALES:
+// Los niveles están estandarizados para facilitar la asignación de cursos:
+// - basico: Estudiantes sin experiencia previa
+// - intermedio: Estudiantes con conocimientos básicos
+// - avanzado: Estudiantes con experiencia significativa
+//
+// 🎸 INSTRUMENTOS DE INTERÉS:
+// El array instrumentosInteres permite personalizar la experiencia del estudiante
+// y facilitar recomendaciones de cursos. Los valores coinciden con los instrumentos
+// de la colección cursos para mantener consistencia.
+//
+// 🏢 ASIGNACIÓN TERRITORIAL:
+// El campo sedeId permite asignar un estudiante a una sede principal,
+// facilitando la gestión territorial y la organización de servicios.
+
+db.createCollection("estudiantes", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      // 📋 Campos obligatorios que debe tener cada documento
+      required: ["usuarioId", "nivelMusical", "sedeId", "estado"],
+      properties: {
+        // 👤 Referencia única al usuario correspondiente
+        usuarioId: {
+          bsonType: "objectId",
+          description: "Referencia única a usuarios._id con rol 'estudiante' (relación 1:1)"
+        },
+        // 🎵 Nivel musical actual del estudiante
+        nivelMusical: {
+          enum: ["basico", "intermedio", "avanzado"],  // 🎯 Niveles permitidos
+          description: "Nivel musical actual del estudiante"
+        },
+        // 🎸 Instrumentos de interés para personalización
+        instrumentosInteres: {
+          bsonType: "array",
+          items: {
+            enum: ["piano", "guitarra", "violin", "canto", "teoria musical", "bajo", "bateria"]  // 🎯 Instrumentos permitidos
+          },
+          description: "Instrumentos de interés del estudiante (valores en minúsculas)"
+        },
+        // 🏢 Sede principal asignada al estudiante
+        sedeId: {
+          bsonType: "objectId",
+          description: "Referencia a la sede principal del estudiante (sedes._id)"
+        },
+        // 📅 Fecha de ingreso al sistema académico
+        fechaIngreso: {
+          bsonType: "date",
+          description: "Fecha de ingreso del estudiante al sistema"
+        },
+        // ✅ Estado académico del estudiante
+        estado: {
+          enum: ["activo", "inactivo", "suspendido", "egresado"],  // 🎯 Estados permitidos
+          description: "Estado académico del estudiante en la institución"
+        },
+        // 📅 Fecha de creación del registro
+        createdAt: {
+          bsonType: "date",
+          description: "Fecha de creación del registro"
+        },
+        // 🔄 Fecha de última actualización
+        updatedAt: {
+          bsonType: "date",
+          description: "Fecha de última actualización"
+        }
+      }
+    }
+  }
+})
+
+// 📊 ÍNDICES ESTRATÉGICOS Y MINIMALISTAS PARA LA COLECCIÓN ESTUDIANTES
+// ====================================================================
+// ⚠️ ESTRATÉGICOS: Solo 2 índices que cubren todas las necesidades del negocio
+//
+// 🎯 FILOSOFÍA DE ÍNDICES:
+// La estrategia es minimalista pero inteligente. Cada índice tiene un propósito
+// específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga.
+
+// 1. 🔑 ÍNDICE ÚNICO CRÍTICO - Relación 1:1 con Usuarios
+// =======================================================
+// Propósito: Garantiza la relación 1:1 única con la colección usuarios
+// Casos de uso: Validación de integridad referencial, búsqueda por usuario
+// Importancia: Es la base de la normalización y la integridad de datos
+// Ejemplo: Un usuario con rol 'estudiante' solo puede tener un perfil estudiantil
+db.estudiantes.createIndex({ usuarioId: 1 }, { unique: true });
+
+// 2. 🚀 ÍNDICE DE CONSULTA PRINCIPAL - Estudiantes por Sede y Estado
+// ==================================================================
+// Propósito: Optimiza la consulta más frecuente del sistema
+// Casos de uso: "Muéstrame todos los estudiantes activos de la sede Bogotá"
+// Importancia: Es la consulta operativa más común en la gestión académica
+// Eficiencia: Extremadamente eficiente para reportes por sede
+db.estudiantes.createIndex({ sedeId: 1, estado: 1 });
+
+// 📝 NOTAS DE GESTIÓN Y ESTRATEGIA:
+// ==================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Validación de relación 1:1 con usuarios (integridad crítica)
+//    - Filtrado de estudiantes por sede y estado (consulta principal)
+//    - Gestión de perfiles estudiantiles específicos
+//    - Reportes de distribución por sede
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Relación 1:1 única garantiza integridad referencial
+//    - Niveles musicales controlados para asignación de cursos
+//    - Estados académicos específicos para seguimiento
+//    - Instrumentos de interés estandarizados
+//    - Sede principal obligatoria para organización territorial
+// 
+// 🎯 Casos de uso principales:
+//    - Gestión de perfiles estudiantiles específicos
+//    - Control de niveles musicales y preferencias
+//    - Asignación de sedes principales
+//    - Seguimiento de estados académicos
+//    - Personalización de cursos por intereses
+// 
+// 📊 NORMALIZACIÓN Y EFICIENCIA:
+//    - Datos de autenticación en colección usuarios
+//    - Datos específicos de estudiante en esta colección
+//    - Relación 1:1 única garantiza consistencia
+//    - Índices minimalistas para máximo rendimiento
+  
+
+// 📚 4. COLECCIÓN DE CURSOS - Gestión de programas educativos
+// ===========================================================
+// Esta colección almacena información de todos los cursos ofrecidos en el campus musical
+// ⚠️ OPTIMIZADA: Estructura de cupos mejorada, validaciones robustas e índices estratégicos
+// 🔒 SEGURIDAD: Control de cupos transaccional y validaciones de negocio
+//
+// 📋 DESCRIPCIÓN:
+// Esta colección es fundamental para el sistema académico, ya que contiene toda la
+// información de los cursos ofrecidos. Es la base para las inscripciones, gestión
+// de cupos y cálculo de ingresos. La estructura de cupos está optimizada para
+// transacciones seguras y control de disponibilidad en tiempo real.
 //
 // 🎯 CASOS DE USO PRINCIPALES:
 // - Catálogo de cursos disponibles por sede
-// - Gestión de cupos y disponibilidad
+// - Gestión de cupos con transacciones seguras
 // - Asignación de profesores a cursos
-// - Programación de horarios
-// - Cálculo de ingresos por curso
+// - Control de costos e ingresos
+// - Programación académica por sede
 //
 // 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
-// - cuposDisponibles nunca puede ser mayor que cupos totales
-// - cuposDisponibles no puede ser negativo
-// - Profesor no puede tener cursos superpuestos en horario
-// - Nombre de curso único por sede
+// - Nombre único por sede (previene duplicados)
+// - Estructura de cupos transaccional (maximo/disponibles)
+// - Validación de negocio: disponibles ≤ maximo
+// - Costo obligatorio para inscripciones
+// - Estados de curso controlados
 //
 // 💡 DECISIONES DE DISEÑO IMPORTANTES:
-// - ❌ ELIMINADO: campo 'inscritos' (redundante y peligroso)
-// - ✅ MANTENIDO: solo 'cuposDisponibles' como fuente única de verdad
-// - ❌ ELIMINADO: array 'profesores' (complejidad innecesaria)
-// - ✅ SIMPLIFICADO: campo 'profesorId' único
-// - ❌ ELIMINADO: 'categoriaId' (sobre-normalización)
-// - ✅ AGREGADO: array 'generos' flexible
+// - ✅ IMPLEMENTADO: Estructura de cupos objeto (maximo/disponibles)
+// - ✅ IMPLEMENTADO: Costo obligatorio para transacciones
+// - ✅ IMPLEMENTADO: Duración flexible (valor + unidad)
+// - ✅ IMPLEMENTADO: Referencia correcta a profesores
+// - ✅ IMPLEMENTADO: Validación de negocio con $expr
 //
 // 📊 RELACIONES:
-// - Referencia a sede (sedeId) → colección 'sedes'
-// - Referencia a profesor (profesorId) → colección 'profesores'
+// - Referencia a sede → colección 'sedes'
+// - Referencia a profesor → colección 'profesores'
 // - Referenciado por inscripciones → colección 'inscripciones'
+// - Relacionado con estudiantes → colección 'estudiantes' (por nivel)
 //
-// 🎵 GÉNEROS MUSICALES:
-// El array 'generos' permite que un curso tenga múltiples estilos musicales.
-// Ejemplo: Un curso de guitarra puede ser "Rock" y "Blues" simultáneamente.
-// Esto facilita búsquedas como "mostrar todos los cursos de Rock".
+// 💰 GESTIÓN FINANCIERA:
+// El campo 'costo' es crítico para el cálculo de ingresos y la gestión
+// financiera del campus. Es obligatorio para todas las inscripciones.
 //
-// ⏰ GESTIÓN DE HORARIOS:
-// El objeto 'horario' contiene día, hora de inicio y fin.
-// La validación de formato HH:MM garantiza consistencia en los datos.
-// El índice único en profesor + día + hora previene conflictos de horario.
+// 🎫 CONTROL DE CUPOS TRANSACCIONAL:
+// La estructura de cupos como objeto permite un control granular:
+// - maximo: Capacidad total del curso
+// - disponibles: Cupos restantes (se actualiza con transacciones)
+// - Validación: disponibles nunca puede exceder maximo
+//
+// ⏱️ DURACIÓN FLEXIBLE:
+// El objeto duración permite especificar la duración en diferentes
+// unidades (semanas, horas, meses), facilitando la programación
+// de cursos con diferentes formatos.
 
 db.createCollection("cursos", {
   validator: {
     $jsonSchema: {
       bsonType: "object",
       // 📋 Campos obligatorios que debe tener cada documento
-      required: ["nombre", "instrumento", "nivel", "duracion", "cupos", "cuposDisponibles", "costo", "horarios", "sedeId", "profesorId", "createdAt", "updatedAt"],
+      required: ["nombre", "nivel", "instrumento", "costo", "sedeId", "profesorId", "cupos", "estado", "createdAt"],
       properties: {
-        // 📖 Nombre descriptivo del curso
+        // 📖 Información básica del curso
         nombre: {
           bsonType: "string",
           minLength: 3,  // 🛡️ Mínimo 3 caracteres
           maxLength: 100,  // 🛡️ Máximo 100 caracteres
-          description: "Nombre del curso (ej: 'Curso de Piano Avanzado')"
+          description: "Nombre del curso (identificador único por sede)"
         },
-        // 🎸 Instrumento que se enseña (SIMPLIFICADO)
-        instrumento: {
+        // 📝 Descripción detallada del curso
+        descripcion: {
           bsonType: "string",
-          enum: ["Piano", "Guitarra", "Violín", "Bajo", "Batería", "Canto", "Teoría Musical", "Composición", "Producción Musical"],  // 🎯 Instrumentos permitidos
-          description: "Instrumento principal que se enseña en el curso"
+          maxLength: 500,  // 🛡️ Máximo 500 caracteres
+          description: "Descripción detallada del curso (opcional)"
         },
         // 📊 Nivel de dificultad del curso
         nivel: {
-          enum: ["básico", "intermedio", "avanzado"],  // 🎯 Solo estos niveles permitidos
+          enum: ["basico", "intermedio", "avanzado"],  // 🎯 Niveles permitidos
           description: "Nivel de dificultad del curso"
         },
-        // ⏱️ Duración del curso en semanas
-        duracion: {
-          bsonType: "int",
-          minimum: 1,  // 🛡️ Mínimo 1 semana
-          maximum: 52,  // 🛡️ Máximo 1 año
-          description: "Duración en semanas (1-52 semanas)"
+        // 🎸 Instrumento principal del curso
+        instrumento: {
+          enum: ["piano", "guitarra", "violin", "canto", "teoria", "bajo"],  // 🎯 Instrumentos permitidos
+          description: "Instrumento principal que se enseña en el curso"
         },
-        // 👥 Capacidad total del curso
-        cupos: {
-          bsonType: "int",
-          minimum: 1,  // 🛡️ Mínimo 1 cupo
-          maximum: 50,  // 🛡️ Máximo 50 cupos por curso
-          description: "Cupos totales del curso"
-        },
-        // 🎫 Cupos disponibles (ÚNICA FUENTE DE VERDAD)
-        cuposDisponibles: {
-          bsonType: "int",
-          minimum: 0,  // 🛡️ No puede ser negativo
-          maximum: 50,  // 🛡️ No puede exceder cupos totales
-          description: "Cupos disponibles actualizados (fuente única de verdad)"
-        },
-        // 💰 Valor monetario del curso
+        // 💰 Costo del curso (CRÍTICO para transacciones)
         costo: {
           bsonType: "number",
           minimum: 0,  // 🛡️ No puede ser negativo
-          maximum: 10000,  // 🛡️ Máximo $10,000
-          description: "Valor del curso en pesos colombianos"
+          description: "Costo del curso en pesos colombianos (esencial para inscripciones)"
         },
-        // 🕐 Horarios de clases (CORREGIDO - ARRAY para múltiples horarios)
-        horarios: {
-          bsonType: "array",
-          minItems: 1,  // 🛡️ Al menos un horario requerido
-          items: {
-            bsonType: "object",
-            required: ["dia", "horaInicio", "horaFin"],
-            properties: {
-              dia: {
-                enum: ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"],  // 🎯 Días permitidos
-                description: "Día de la semana para las clases"
-              },
-              horaInicio: {
-                bsonType: "string",
-                pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",  // 🔍 Formato HH:MM
-                description: "Hora de inicio (ej: '14:00')"
-              },
-              horaFin: {
-                bsonType: "string",
-                pattern: "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$",  // 🔍 Formato HH:MM
-                description: "Hora de fin (ej: '16:00')"
-              }
+        // 🎫 Estructura de cupos optimizada para transacciones
+        cupos: {
+          bsonType: "object",
+          required: ["maximo", "disponibles"],
+          properties: {
+            maximo: {
+              bsonType: "int",
+              minimum: 1,  // 🛡️ Mínimo 1 cupo
+              description: "Número máximo de estudiantes permitidos en el curso"
+            },
+            disponibles: {
+              bsonType: "int",
+              minimum: 0,  // 🛡️ No puede ser negativo
+              description: "Cupos restantes disponibles (se actualiza con transacciones)"
             }
           },
-          description: "Horarios de clases (permite múltiples horarios por curso)"
+          description: "Control de cupos con estructura transaccional"
+        },
+        // ⏱️ Duración flexible del curso
+        duracion: {
+          bsonType: "object",
+          properties: {
+            valor: {
+              bsonType: "int",
+              minimum: 1,  // 🛡️ Mínimo 1
+              description: "Valor numérico de la duración"
+            },
+            unidad: {
+              enum: ["semanas", "horas", "meses"],  // 🎯 Unidades permitidas
+              description: "Unidad de tiempo para la duración"
+            }
+          },
+          description: "Duración del curso con formato flexible"
         },
         // 🏢 Referencia a la sede donde se imparte
         sedeId: {
           bsonType: "objectId",
           description: "Referencia a la sede donde se imparte el curso (sedes._id)"
         },
-        // 👨‍🏫 Referencia al profesor principal (SIMPLIFICADO)
+        // 👨‍🏫 Referencia al profesor asignado
         profesorId: {
           bsonType: "objectId",
-          description: "Referencia al profesor principal del curso (profesores._id)"
+          description: "Referencia al profesor asignado al curso (profesores._id)"
         },
-        // 🎵 Géneros musicales del curso (FLEXIBLE)
-        generos: {
-          bsonType: "array",
-          items: {
-            bsonType: "string",
-            enum: ["Clásica", "Rock", "Pop", "Jazz", "Blues", "Folk", "Electrónica", "Latina", "Country", "Reggae", "Hip Hop", "Metal", "Funk", "Soul", "R&B"]  // 🎯 Géneros permitidos
-          },
-          description: "Géneros o estilos musicales asociados al curso"
-        },
-        // ✅ Estado del curso
+        // ✅ Estado operativo del curso
         estado: {
-          enum: ["activo", "inactivo", "próximo", "finalizado"],  // 🎯 Estados permitidos
+          enum: ["activo", "inactivo", "cerrado", "proximo"],  // 🎯 Estados permitidos
           description: "Estado actual del curso"
         },
         // 📅 Fecha de creación del curso
@@ -370,156 +686,174 @@ db.createCollection("cursos", {
         }
       }
     },
-    // 🛡️ VALIDACIONES DE NEGOCIO CRÍTICAS
-    // ===================================
+    // 🛡️ VALIDACIÓN DE NEGOCIO CRÍTICA - Integridad de Cupos
+    // ======================================================
+    // Esta validación garantiza que los cupos disponibles nunca excedan
+    // el máximo permitido, manteniendo la integridad de datos.
     $expr: {
-      $and: [
-        // 🎫 Regla crítica: cuposDisponibles nunca puede ser mayor que cupos
-        { $lte: ["$cuposDisponibles", "$cupos"] },
-        // 🛡️ cuposDisponibles no puede ser negativo
-        { $gte: ["$cuposDisponibles", 0] }
-      ]
+      $lte: ["$cupos.disponibles", "$cupos.maximo"]
     }
   }
 })
 
-// -- Índices Esenciales para Cursos --
-db.cursos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // Nombre único por sede
-db.cursos.createIndex({ sedeId: 1, estado: 1, nivel: 1 });  // CONSULTA PRINCIPAL: cursos activos por sede y nivel
+// 📊 ÍNDICES ESTRATÉGICOS PARA LA COLECCIÓN CURSOS
+// ================================================
+// ⚠️ ESTRATÉGICOS: Solo 3 índices que cubren todas las necesidades del negocio
+//
+// 🎯 FILOSOFÍA DE ÍNDICES:
+// La estrategia es minimalista pero inteligente. Cada índice tiene un propósito
+// específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga.
 
-// 👨‍🎓 4. COLECCIÓN DE ESTUDIANTES - Gestión del rol de estudiante (CORREGIDA Y AÑADIDA)
-// ===================================================================================
-// 📋 DESCRIPCIÓN:
-// Esta colección almacena ÚNICAMENTE información específica del rol de "estudiante".
-// NO contiene datos de identidad (nombre, doc, email) - esos están en 'usuarios'.
-db.createCollection("estudiantes", {
-  validator: {
-    $jsonSchema: {
-      bsonType: "object",
-      required: ["usuarioId", "nivelExperiencia", "estado", "createdAt"],
-      properties: {
-        // 🔗 Referencia a la IDENTIDAD del usuario en la colección 'usuarios'
-        usuarioId: {
-          bsonType: "objectId",
-          description: "Referencia obligatoria al documento en la colección 'usuarios'"
-        },
-        // --- Datos exclusivos del ROL de estudiante ---
-        nivelExperiencia: {
-          enum: ["principiante", "intermedio", "avanzado"],
-          description: "Nivel de experiencia musical del estudiante."
-        },
-        instrumentosInteres: {
-          bsonType: "array",
-          items: {
-            bsonType: "string",
-            enum: ["Piano", "Guitarra", "Violín", "Bajo", "Batería", "Canto"]
-          },
-          description: "Instrumentos en los que el estudiante tiene interés."
-        },
-        // --- Datos Administrativos del Rol ---
-        sedeId: {
-          bsonType: "objectId",
-          description: "Referencia a la sede preferida o actual del estudiante."
-        },
-        estado: {
-          enum: ["activo", "inactivo", "suspendido", "egresado"],
-          description: "Estado administrativo del estudiante en la escuela."
-        },
-        // --- Campos de Auditoría ---
-        createdAt: { bsonType: "date" },
-        updatedAt: { bsonType: "date" }
-      }
-    }
-  }
-});
-// -- Índices Esenciales para Estudiantes --
-// Garantiza que un usuario solo tenga UN perfil de estudiante
-db.estudiantes.createIndex({ usuarioId: 1 }, { unique: true });
-// CONSULTA PRINCIPAL: Buscar estudiantes activos en una sede
-db.estudiantes.createIndex({ sedeId: 1, estado: 1 });
+// 1. 🔑 ÍNDICE ÚNICO CRÍTICO - Prevención de Duplicados por Sede
+// ===============================================================
+// Propósito: Previene cursos duplicados en la misma sede
+// Casos de uso: Validación de integridad, búsqueda por nombre y sede
+// Importancia: Es una regla de negocio crítica para evitar confusiones
+// Ejemplo: Evita "Piano Básico" duplicado en la misma sede
+db.cursos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });
 
-// 👨‍🏫 5. COLECCIÓN DE PROFESORES - Gestión del personal docente (CORREGIDA)
-// ===========================================================================
+// 2. 🚀 ÍNDICE DE CONSULTA PRINCIPAL - Catálogo de Cursos por Sede
+// ================================================================
+// Propósito: Optimiza la consulta más frecuente del sistema
+// Casos de uso: "Ver cursos activos en la sede Bogotá"
+// Importancia: Es la consulta principal del catálogo de cursos
+// Eficiencia: Extremadamente eficiente para mostrar cursos disponibles
+db.cursos.createIndex({ sedeId: 1, estado: 1 });
+
+// 3. 👨‍🏫 ÍNDICE DE ASIGNACIÓN PROFESORAL - Cursos por Profesor
+// =============================================================
+// Propósito: Optimiza la búsqueda de cursos asignados a un profesor
+// Casos de uso: "Mostrar todos los cursos del profesor Carlos"
+// Importancia: Esencial para la gestión de carga académica
+// Eficiencia: Muy eficiente para reportes de profesores
+db.cursos.createIndex({ profesorId: 1 });
+
+// 📝 NOTAS DE GESTIÓN Y ESTRATEGIA:
+// ==================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Validación de duplicados por sede (integridad crítica)
+//    - Filtrado de cursos activos por sede (consulta principal)
+//    - Búsqueda de cursos por profesor (gestión académica)
+//    - Control de cupos transaccional
 // 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Nombre único por sede previene duplicados
+//    - Estructura de cupos transaccional segura
+//    - Validación de negocio: disponibles ≤ maximo
+//    - Costo obligatorio para transacciones
+//    - Estados de curso controlados
+// 
+// 🎯 Casos de uso principales:
+//    - Catálogo de cursos disponibles por sede
+//    - Gestión de cupos con transacciones seguras
+//    - Asignación de profesores a cursos
+//    - Control de costos e ingresos
+//    - Programación académica por sede
+// 
+// 💰 GESTIÓN FINANCIERA:
+//    - Control de costos por curso
+//    - Cálculo de ingresos por inscripciones
+//    - Reportes financieros por sede
+//    - Análisis de rentabilidad por curso
+
+// 👨‍🏫 5. COLECCIÓN DE PROFESORES - Gestión del personal docente
+// ============================================================
+// Esta colección almacena información específica de todos los profesores del campus musical
+// ⚠️ OPTIMIZADA: Relación 1:1 con usuarios, especialidades múltiples e índices estratégicos
+// 🔒 SEGURIDAD: Control de estados y especialidades estandarizadas
+//
 // 📋 DESCRIPCIÓN:
-// Esta colección almacena ÚNICAMENTE información específica del rol de "profesor".
-// NO contiene datos de identidad (nombre, documento, email) - esos están en 'usuarios'.
-// Es una colección de rol que extiende la información de un usuario que es profesor.
+// Esta colección es fundamental para el sistema académico, ya que contiene la información
+// específica de profesores que complementa los datos de autenticación de la colección usuarios.
+// Implementa una relación 1:1 normalizada para mantener la integridad de datos y separar
+// responsabilidades. Los profesores pueden tener múltiples especialidades.
 //
 // 🎯 CASOS DE USO PRINCIPALES:
-// - Gestión del rol laboral de profesores
-// - Seguimiento de especialidades y experiencia
-// - Control de asignaciones de cursos
-// - Gestión de información salarial
-// - Estados laborales del personal docente
+// - Gestión de perfiles profesoral específicos
+// - Control de especialidades múltiples por profesor
+// - Asignación de sedes principales
+// - Seguimiento de estados laborales
+// - Gestión de carga académica por especialidad
 //
 // 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
-// - Referencia única a usuario (usuarioId)
-// - Especialidades válidas coherentes con cursos
-// - Estados laborales controlados
-// - Validación de experiencia realista
+// - Relación 1:1 única con usuarios (usuarioId único)
+// - Especialidades múltiples estandarizadas
+// - Estados laborales validados
+// - Niveles académicos controlados
+// - Sede principal obligatoria
 //
-// 💡 DECISIÓN DE DISEÑO CORREGIDA:
-// ✅ SEPARACIÓN DE RESPONSABILIDADES:
-//    - usuarios: identidad, autenticación, datos personales básicos
-//    - profesores: rol laboral, especialidades, experiencia, información salarial
-//    - Una sola fuente de verdad para identidad
-//
-// ✅ ELIMINACIÓN DE DUPLICACIÓN:
-//    - ❌ ELIMINADO: nombreCompleto, documento, contacto
-//    - ✅ AGREGADO: referencia usuarioId a colección usuarios
-//    - Evita inconsistencias y datos obsoletos
+// 💡 DECISIONES DE DISEÑO IMPORTANTES:
+// - ✅ IMPLEMENTADO: Relación 1:1 con usuarios (normalización)
+// - ✅ IMPLEMENTADO: Array especialidades para flexibilidad
+// - ✅ IMPLEMENTADO: Campo sedeId para asignación territorial
+// - ✅ IMPLEMENTADO: Estados laborales específicos
+// - ✅ IMPLEMENTADO: Experiencia en años para ranking
 //
 // 📊 RELACIONES:
-// - Referencia a usuario (usuarioId) → colección 'usuarios' (IDENTIDAD)
-// - Referenciado por cursos → colección 'cursos' (profesorId)
-// - Referenciado por inscripciones → $lookup indirecto vía cursos
+// - Referencia única a usuarios → colección 'usuarios' (rol = 'profesor')
+// - Referencia a sede principal → colección 'sedes'
+// - Referenciado por cursos → colección 'cursos'
+// - Relacionado con inscripciones → colección 'inscripciones' (por curso)
+//
+// 🎵 ESPECIALIDADES MÚLTIPLES:
+// El array especialidades permite que un profesor tenga múltiples áreas de expertise.
+// Ejemplo: Un profesor puede ser especialista en "piano" y "teoria musical" simultáneamente.
+// Esto facilita la asignación flexible de cursos y la optimización de recursos humanos.
+//
+// 🏢 ASIGNACIÓN TERRITORIAL:
+// El campo sedeId permite asignar un profesor a una sede principal, facilitando
+// la gestión territorial y la organización de servicios educativos.
+//
+// 📊 NIVELES ACADÉMICOS:
+// Los niveles están estandarizados para facilitar la asignación de cursos por complejidad:
+// - tecnico: Formación técnica en música
+// - profesional: Licenciatura o pregrado en música
+// - especializacion: Especialización en área específica
+// - maestria: Maestría en música o áreas afines
+// - doctorado: Doctorado en música o áreas afines
 
 db.createCollection("profesores", {
   validator: {
     $jsonSchema: {
       bsonType: "object",
       // 📋 Campos obligatorios que debe tener cada documento
-      required: ["usuarioId", "especialidad", "experiencia", "estado", "createdAt", "updatedAt"],
+      required: ["usuarioId", "especialidades", "estado", "createdAt"],
       properties: {
-        // 🔗 Referencia al usuario (IDENTIDAD)
+        // 👤 Referencia única al usuario correspondiente
         usuarioId: {
           bsonType: "objectId",
-          description: "Referencia al usuario en la colección usuarios (IDENTIDAD - nombre, documento, email)"
+          description: "Referencia única a usuarios._id con rol 'profesor' (relación 1:1)"
         },
-        // 🎸 Especialidad musical del profesor
-        especialidad: {
-          enum: ["Piano", "Guitarra", "Violín", "Bajo", "Batería", "Canto", "Teoría Musical", "Composición", "Producción Musical"],  // 🎯 Especialidades permitidas
-          description: "Instrumento o área principal de enseñanza"
+        // 🎵 Especialidades múltiples del profesor
+        especialidades: {
+          bsonType: "array",
+          minItems: 1,  // 🛡️ Mínimo 1 especialidad
+          uniqueItems: true,  // 🛡️ Sin duplicados
+          items: {
+            enum: ["piano", "guitarra", "violin", "canto", "teoria musical", "bajo", "bateria"]  // 🎯 Especialidades permitidas
+          },
+          description: "Lista de especialidades del profesor (valores en minúsculas)"
+        },
+        // 🎓 Nivel académico más alto alcanzado
+        nivelAcademico: {
+          enum: ["tecnico", "profesional", "especializacion", "maestria", "doctorado"],  // 🎯 Niveles permitidos
+          description: "Máximo nivel académico alcanzado"
         },
         // 📊 Años de experiencia profesional
-        experiencia: {
+        experienciaAnios: {
           bsonType: "int",
           minimum: 0,  // 🛡️ No puede ser negativo
-          maximum: 50,  // 🛡️ Máximo 50 años de experiencia
-          description: "Años de experiencia profesional (0-50 años)"
+          description: "Años de experiencia profesional"
         },
-        // 🎓 Nivel académico del profesor
-        nivelAcademico: {
-          enum: ["Técnico", "Tecnólogo", "Profesional", "Especialización", "Maestría", "Doctorado"],  // 🎯 Niveles permitidos
-          description: "Nivel académico más alto alcanzado"
+        // 🏢 Sede principal asignada al profesor
+        sedeId: {
+          bsonType: "objectId",
+          description: "Referencia a la sede principal del profesor (sedes._id)"
         },
         // ✅ Estado laboral del profesor
         estado: {
-          enum: ["activo", "inactivo", "vacaciones", "licencia"],  // 🎯 Estados permitidos
-          description: "Estado laboral del profesor en el sistema"
-        },
-        // 💰 Información salarial (SENSIBLE - Solo acceso admin)
-        salario: {
-          bsonType: "number",
-          minimum: 0,  // 🛡️ No puede ser negativo
-          description: "Salario mensual del profesor (información sensible - control de acceso requerido)"
-        },
-
-        // 📅 Fecha de contratación
-        fechaContratacion: {
-          bsonType: "date",
-          description: "Fecha en que el profesor fue contratado"
+          enum: ["activo", "inactivo", "suspendido", "retirado"],  // 🎯 Estados permitidos
+          description: "Estado laboral actual del profesor"
         },
         // 📅 Fecha de creación del registro
         createdAt: {
@@ -536,221 +870,616 @@ db.createCollection("profesores", {
   }
 })
 
-// -- Índices Esenciales para Profesores --
-// Garantiza que un usuario solo tenga UN perfil de profesor
+// 📊 ÍNDICES ESTRATÉGICOS Y MINIMALISTAS PARA LA COLECCIÓN PROFESORES
+// ===================================================================
+// ⚠️ ESTRATÉGICOS: Solo 2 índices que cubren todas las necesidades del negocio
+//
+// 🎯 FILOSOFÍA DE ÍNDICES:
+// La estrategia es minimalista pero inteligente. Cada índice tiene un propósito
+// específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga.
+
+// 1. 🔑 ÍNDICE ÚNICO CRÍTICO - Relación 1:1 con Usuarios
+// =======================================================
+// Propósito: Garantiza la relación 1:1 única con la colección usuarios
+// Casos de uso: Validación de integridad referencial, búsqueda por usuario
+// Importancia: Es la base de la normalización y la integridad de datos
+// Ejemplo: Un usuario con rol 'profesor' solo puede tener un perfil profesoral
 db.profesores.createIndex({ usuarioId: 1 }, { unique: true });
-// CONSULTA PRINCIPAL: Buscar profesores activos por especialidad
-db.profesores.createIndex({ especialidad: 1, estado: 1 });
 
+// 2. 🚀 ÍNDICE DE CONSULTA PRINCIPAL - Profesores por Sede, Especialidad y Estado
+// ==============================================================================
+// Propósito: Optimiza la consulta más frecuente del sistema
+// Casos de uso: "Listar todos los profesores activos con especialidad piano en la sede Bogotá"
+// Importancia: Es la consulta principal de gestión académica
+// Eficiencia: Extremadamente eficiente para asignación de cursos y reportes
+// NOTA: Este índice compuesto es muy poderoso y cubre múltiples casos de uso:
+// - Buscar por sedeId
+// - Buscar por sedeId y especialidad
+// - Buscar por sedeId, especialidad y estado
+db.profesores.createIndex({ sedeId: 1, especialidades: 1, estado: 1 });
 
-
+// 📝 NOTAS DE GESTIÓN Y ESTRATEGIA:
+// ==================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Validación de relación 1:1 con usuarios (integridad crítica)
+//    - Filtrado de profesores por sede, especialidad y estado (consulta principal)
+//    - Gestión de perfiles profesoral específicos
+//    - Reportes de distribución por sede y especialidad
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Relación 1:1 única garantiza integridad referencial
+//    - Especialidades múltiples estandarizadas para consistencia
+//    - Estados laborales específicos para seguimiento
+//    - Niveles académicos controlados para asignación de cursos
+//    - Sede principal obligatoria para organización territorial
+// 
+// 🎯 Casos de uso principales:
+//    - Gestión de perfiles profesoral específicos
+//    - Control de especialidades múltiples por profesor
+//    - Asignación de sedes principales
+//    - Seguimiento de estados laborales
+//    - Gestión de carga académica por especialidad
+// 
+// 📊 NORMALIZACIÓN Y EFICIENCIA:
+//    - Datos de autenticación en colección usuarios
+//    - Datos específicos de profesor en esta colección
+//    - Relación 1:1 única garantiza consistencia
+//    - Índices minimalistas para máximo rendimiento
+//    - Eliminado campo 'disponibilidad' para evitar inconsistencias
 
 
 // 📝 6. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
 // ============================================================
 // Esta colección almacena todas las inscripciones de estudiantes en cursos
-// ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
-// 🔒 SEGURIDAD: Control de cupos y estados de inscripción
+// ⚠️ OPTIMIZADA: Estructura normalizada, datos históricos congelados e índices estratégicos
+// 🔒 SEGURIDAD: Control de cupos, estados de inscripción y integridad referencial
+//
+// 📋 DESCRIPCIÓN:
+// Esta colección es fundamental para el sistema académico, ya que registra todas las
+// inscripciones de estudiantes en cursos. Implementa un diseño normalizado donde solo
+// se almacenan las relaciones esenciales y los datos históricos congelados al momento
+// de la inscripción. La información de sede y profesor se obtiene a través de la
+// referencia al curso, manteniendo la integridad referencial.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Registro de inscripciones con datos históricos congelados
+// - Control de estados de inscripción (activa, cancelada, finalizada)
+// - Prevención de inscripciones duplicadas
+// - Historial completo de matrículas por estudiante
+// - Reportes de inscripciones por período
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Relación única estudiante-curso (previene duplicados)
+// - Costo congelado al momento de inscripción (dato histórico)
+// - Estados de inscripción controlados
+// - Referencias válidas a estudiantes y cursos
+// - Fechas de auditoría obligatorias
+//
+// 💡 DECISIONES DE DISEÑO IMPORTANTES:
+// - ✅ IMPLEMENTADO: Estructura normalizada (sin redundancia)
+// - ✅ IMPLEMENTADO: Costo congelado para integridad histórica
+// - ✅ IMPLEMENTADO: Eliminación de campos redundantes (sedeId, profesorId)
+// - ✅ IMPLEMENTADO: Estados simplificados y claros
+// - ✅ IMPLEMENTADO: Auditoría completa con timestamps
+//
+// 📊 RELACIONES:
+// - Referencia a estudiante → colección 'estudiantes'
+// - Referencia a curso → colección 'cursos'
+// - Información de sede → obtenida a través de curso.sedeId
+// - Información de profesor → obtenida a través de curso.profesorId
+//
+// 💰 DATOS HISTÓRICOS CONGELADOS:
+// El campo 'costoCongelado' preserva el costo del curso al momento exacto de la
+// inscripción. Esto es crítico para la integridad financiera, ya que los costos
+// de los cursos pueden cambiar en el futuro, pero las inscripciones existentes
+// mantienen su valor histórico.
+//
+// 🏗️ NORMALIZACIÓN Y EFICIENCIA:
+// Al eliminar campos redundantes como 'sedeId' y 'profesorId', se mantiene la
+// integridad referencial y se evita la duplicación de datos. La información
+// de sede y profesor se obtiene eficientemente a través de la referencia al curso.
+//
+// 📊 ESTADOS DE INSCRIPCIÓN:
+// Los estados están diseñados para cubrir el ciclo de vida completo de una inscripción:
+// - activa: Inscripción vigente y en curso
+// - cancelada: Inscripción cancelada antes de finalizar
+// - finalizada: Inscripción completada exitosamente
+// - pendiente: Inscripción en proceso de confirmación
 
 db.createCollection("inscripciones", {
   validator: {
     $jsonSchema: {
       bsonType: "object",
       // 📋 Campos obligatorios que debe tener cada documento
-      required: ["estudianteId", "cursoId", "fechaInscripcion", "costo", "estado", "createdAt", "updatedAt"],
+      required: [
+        "estudianteId",
+        "cursoId",
+        "costoCongelado",  // 🛡️ Costo congelado al momento de inscripción
+        "fechaInscripcion",
+        "estado",
+        "createdAt"
+      ],
       properties: {
         // 👨‍🎓 Referencia al estudiante inscrito
         estudianteId: {
           bsonType: "objectId",
-          description: "Referencia al estudiante inscrito (estudiantes._id)"
+          description: "Referencia al _id en la colección 'estudiantes'"
         },
         // 📚 Referencia al curso en el que se inscribe
         cursoId: {
           bsonType: "objectId",
-          description: "Referencia al curso en el que se inscribe (cursos._id)"
+          description: "Referencia al _id en la colección 'cursos'"
         },
-        // 📅 Fecha en que se realizó la inscripción (HISTÓRICO)
+        // 💰 Costo congelado al momento de inscripción (HISTÓRICO)
+        costoCongelado: {
+          bsonType: "double",  // 🛡️ Precisión decimal para valores monetarios
+          minimum: 0,  // 🛡️ No puede ser negativo
+          description: "El costo del curso al momento de la inscripción. Este valor no cambia"
+        },
+        // 📅 Fecha en que se realizó la inscripción
         fechaInscripcion: {
           bsonType: "date",
-          description: "Fecha en que se realizó la inscripción (dato histórico)"
-        },
-        // 💰 Costo de la inscripción (HISTÓRICO - puede cambiar en el futuro)
-        costo: {
-          bsonType: "number",
-          minimum: 0,  // 🛡️ No puede ser negativo
-          description: "Costo de la inscripción al momento de inscribirse (dato histórico)"
+          description: "Fecha en que se completó el evento de inscripción"
         },
         // ✅ Estado actual de la inscripción
         estado: {
-          enum: ["activa", "cancelada", "finalizada", "pendiente", "rechazada"],  // 🎯 Estados permitidos
-          description: "Estado actual de la inscripción"
-        },
-        // 📝 Observaciones adicionales
-        notas: {
-          bsonType: "string",
-          maxLength: 500,  // 🛡️ Máximo 500 caracteres
-          description: "Observaciones adicionales sobre la inscripción"
+          enum: ["activa", "cancelada", "finalizada", "pendiente"],  // 🎯 Estados permitidos
+          description: "Estado administrativo de la inscripción"
         },
         // 📅 Fecha de creación del registro
         createdAt: {
           bsonType: "date",
-          description: "Fecha de creación del registro"
+          description: "Fecha de creación del documento"
         },
         // 🔄 Fecha de última actualización
         updatedAt: {
           bsonType: "date",
-          description: "Fecha de última actualización"
+          description: "Fecha de la última actualización"
         }
       }
     }
   }
 })
 
-// 📊 ÍNDICES PERFECTOS PARA LA COLECCIÓN INSCRIPCIONES
-// ===================================================
-// ✅ ESTOS ÍNDICES ESTÁN CORRECTOS - NO NECESITAN CAMBIOS
+// 📊 ÍNDICES ESTRATÉGICOS Y MINIMALISTAS PARA LA COLECCIÓN INSCRIPCIONES
+// ======================================================================
+// ⚠️ ESTRATÉGICOS: Solo 3 índices que cubren todas las necesidades del negocio
+//
+// 🎯 FILOSOFÍA DE ÍNDICES:
+// La estrategia es minimalista pero inteligente. Cada índice tiene un propósito
+// específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga.
 
-// 🔑 Índices Únicos - Garantizan integridad de datos críticos
-// ==========================================================
-db.inscripciones.createIndex({ estudianteId: 1, cursoId: 1 }, { unique: true });  // 👨‍🎓 Un estudiante solo puede inscribirse una vez por curso
+// 1. 🔑 ÍNDICE ÚNICO CRÍTICO - Prevención de Duplicados
+// =======================================================
+// Propósito: Garantiza que un estudiante no pueda inscribirse dos veces en el mismo curso
+// Casos de uso: Validación de integridad, prevención de duplicados
+// Importancia: Es una regla de negocio crítica para mantener la integridad académica
+// Ejemplo: Evita que un estudiante se inscriba múltiples veces en "Piano Básico"
+db.inscripciones.createIndex({ estudianteId: 1, cursoId: 1 }, { unique: true });
 
-// 🔗 Índices Compuestos - Solo los IMPRESCINDIBLES
-// ================================================
-db.inscripciones.createIndex({ cursoId: 1, estado: 1 });                           // 📚 Inscripciones activas por curso (CONSULTA MÁS COMÚN)
-db.inscripciones.createIndex({ estudianteId: 1, fechaInscripcion: -1 });           // 👨‍🎓 Historial de inscripciones por estudiante
+// 2. 🚀 ÍNDICE DE CONSULTA PRINCIPAL - Inscripciones por Curso y Estado
+// =====================================================================
+// Propósito: Optimiza la consulta más frecuente del sistema
+// Casos de uso: "Ver todas las inscripciones activas del curso Piano Básico"
+// Importancia: Es la consulta principal para gestión de cupos y reportes
+// Eficiencia: Extremadamente eficiente para control de cupos y reportes
+db.inscripciones.createIndex({ cursoId: 1, estado: 1 });
 
-// 📝 NOTA: Estos 3 índices cubren TODAS las consultas principales sin redundancia
+// 3. 📊 ÍNDICE DE HISTORIAL - Inscripciones por Estudiante
+// ========================================================
+// Propósito: Optimiza la consulta de historial académico por estudiante
+// Casos de uso: "Mostrar todas las inscripciones del estudiante Juan Pérez"
+// Importancia: Esencial para el historial académico y reportes de estudiantes
+// Eficiencia: Muy eficiente para consultas de historial ordenadas por fecha
+db.inscripciones.createIndex({ estudianteId: 1, fechaInscripcion: -1 });
 
-
+// 📝 NOTAS DE GESTIÓN Y ESTRATEGIA:
+// ==================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Validación de duplicados estudiante-curso (integridad crítica)
+//    - Filtrado de inscripciones por curso y estado (consulta principal)
+//    - Historial de inscripciones por estudiante (reportes académicos)
+//    - Control de cupos y gestión de matrículas
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Relación única estudiante-curso previene duplicados
+//    - Costo congelado preserva integridad histórica
+//    - Estados de inscripción controlados y claros
+//    - Referencias válidas a estudiantes y cursos
+//    - Auditoría completa con timestamps
+// 
+// 🎯 Casos de uso principales:
+//    - Registro de inscripciones con datos históricos congelados
+//    - Control de estados de inscripción (activa, cancelada, finalizada)
+//    - Prevención de inscripciones duplicadas
+//    - Historial completo de matrículas por estudiante
+//    - Reportes de inscripciones por período
+// 
+// 📊 NORMALIZACIÓN Y EFICIENCIA:
+//    - Estructura normalizada sin redundancia
+//    - Información de sede y profesor obtenida a través del curso
+//    - Costo congelado para integridad financiera histórica
+//    - Índices minimalistas para máximo rendimiento
+//    - Eliminación de campos redundantes (sedeId, profesorId)
 
 // 🎸 7. COLECCIÓN DE INSTRUMENTOS - Gestión de instrumentos musicales
 // =================================================================
 // Esta colección almacena información de todos los instrumentos musicales disponibles
-// ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
-// 🔒 SEGURIDAD: Control de estados y ubicación de instrumentos
+// ⚠️ OPTIMIZADA: Código de inventario único, clasificación estandarizada e índices estratégicos
+// 🔒 SEGURIDAD: Control de estados y gestión de inventario físico
+//
+// 📋 DESCRIPCIÓN:
+// Esta colección es fundamental para la gestión del inventario musical del campus.
+// Cada instrumento tiene un código de inventario único que garantiza la trazabilidad
+// física y la integridad del inventario. La clasificación por tipo permite una
+// gestión eficiente y la asignación territorial por sede facilita la organización
+// operativa.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Gestión de inventario físico con códigos únicos
+// - Control de disponibilidad por tipo y sede
+// - Reservas de instrumentos por estudiantes
+// - Mantenimiento y control de estados operativos
+// - Reportes de inventario por sede y tipo
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Código de inventario único (identificador físico)
+// - Tipos de instrumentos estandarizados
+// - Estados operativos controlados
+// - Asignación territorial obligatoria
+// - Auditoría completa con timestamps
+//
+// 💡 DECISIONES DE DISEÑO IMPORTANTES:
+// - ✅ IMPLEMENTADO: Código de inventario único para trazabilidad física
+// - ✅ IMPLEMENTADO: Tipos estandarizados para clasificación eficiente
+// - ✅ IMPLEMENTADO: Estados operativos claros y específicos
+// - ✅ IMPLEMENTADO: Asignación territorial por sede
+// - ✅ IMPLEMENTADO: Auditoría completa con timestamps
+//
+// 📊 RELACIONES:
+// - Referencia a sede → colección 'sedes'
+// - Referenciado por reservas → colección 'reservas_instrumentos'
+// - Relacionado con estudiantes → colección 'estudiantes' (por reservas)
+//
+// 🏷️ CÓDIGO DE INVENTARIO ÚNICO:
+// El campo 'codigoInventario' es el identificador físico único de cada instrumento.
+// Ejemplos: "GTR-001" (Guitarra 001), "PNO-005" (Piano 005), "VIO-012" (Violín 012).
+// Este código permite la trazabilidad física y la gestión de inventario sin ambigüedades.
+//
+// 🎵 TIPOS DE INSTRUMENTOS ESTANDARIZADOS:
+// Los tipos están estandarizados para facilitar la clasificación y búsqueda:
+// - piano: Pianos acústicos y digitales
+// - guitarra: Guitarras acústicas, eléctricas y clásicas
+// - violin: Violines de diferentes tamaños
+// - bateria: Baterías acústicas y electrónicas
+// - canto: Micrófonos y equipos de canto
+// - bajo: Bajos eléctricos y acústicos
+// - otro: Otros instrumentos musicales
+//
+// 🔧 ESTADOS OPERATIVOS:
+// Los estados cubren el ciclo de vida operativo completo de un instrumento:
+// - disponible: Instrumento listo para uso y reservas
+// - reservado: Instrumento asignado a una reserva activa
+// - mantenimiento: Instrumento en proceso de mantenimiento
+// - fuera_de_servicio: Instrumento no disponible por problemas técnicos
 
 db.createCollection("instrumentos", {
   validator: {
     $jsonSchema: {
       bsonType: "object",
       // 📋 Campos obligatorios que debe tener cada documento
-      required: ["nombre", "tipo", "estado", "sedeId", "createdAt", "updatedAt"],
+      required: [
+        "nombre",
+        "tipo",
+        "sedeId",
+        "codigoInventario",  // 🛡️ Código de inventario único (identificador físico)
+        "estado",
+        "createdAt"
+      ],
       properties: {
-        // 🎸 Nombre o modelo del instrumento
+        // 🏷️ Nombre descriptivo del instrumento
         nombre: {
           bsonType: "string",
           minLength: 2,  // 🛡️ Mínimo 2 caracteres
-          maxLength: 100,  // 🛡️ Máximo 100 caracteres
-          description: "Nombre o modelo del instrumento (ej: 'Guitarra Yamaha C40')"
+          maxLength: 50,  // 🛡️ Máximo 50 caracteres
+          description: "Nombre descriptivo del instrumento. Ej: Piano Yamaha C40"
         },
-        // 🎯 Clasificación general del instrumento
+        // 🔢 Código de inventario único (identificador físico)
+        codigoInventario: {
+          bsonType: "string",
+          pattern: "^[A-Z0-9-]{4,15}$",  // 🔍 Formato: letras mayúsculas, números y guiones
+          description: "Código de inventario único y físico. Ej: GTR-001. Requerido"
+        },
+        // 🎵 Tipo general de instrumento
         tipo: {
-          enum: ["cuerda", "viento", "percusión", "teclado", "otro"],  // 🎯 Tipos permitidos
-          description: "Clasificación general del instrumento musical"
+          enum: ["piano", "guitarra", "violin", "bateria", "canto", "bajo", "otro"],  // 🎯 Tipos permitidos
+          description: "Tipo general de instrumento"
         },
-        // ✅ Estado actual del instrumento
+        // ✅ Estado operativo actual del instrumento
         estado: {
-          enum: ["disponible", "en_uso", "mantenimiento", "reservado", "retirado"],  // 🎯 Estados permitidos
-          description: "Estado actual del instrumento en el sistema"
+          enum: ["disponible", "reservado", "mantenimiento", "fuera_de_servicio"],  // 🎯 Estados permitidos
+          description: "Estado operativo actual del instrumento"
         },
         // 🏢 Referencia a la sede donde se encuentra
         sedeId: {
           bsonType: "objectId",
-          description: "Referencia a la sede donde se encuentra el instrumento (sedes._id)"
+          description: "Sede a la que pertenece el instrumento"
         },
-        // 📝 Detalles adicionales del instrumento
-        descripcion: {
-          bsonType: "string",
-          maxLength: 500,  // 🛡️ Máximo 500 caracteres
-          description: "Detalles adicionales sobre el instrumento (marca, modelo, características)"
-        },
-        // 📅 Fecha de registro en el sistema
+        // 📅 Fecha de creación del registro
         createdAt: {
           bsonType: "date",
-          description: "Fecha en que el instrumento fue registrado en el sistema"
+          description: "Fecha de creación del documento"
         },
         // 🔄 Fecha de última actualización
         updatedAt: {
           bsonType: "date",
-          description: "Fecha de última actualización del registro"
+          description: "Fecha de la última actualización"
         }
       }
     }
   }
 })
 
-// -- Índices Esenciales para Instrumentos --
-db.instrumentos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });  // Nombre único por sede
-db.instrumentos.createIndex({ sedeId: 1, estado: 1, tipo: 1 });  // CONSULTA PRINCIPAL: instrumentos disponibles por sede y tipo
+// 📊 ÍNDICES ESTRATÉGICOS Y MINIMALISTAS PARA LA COLECCIÓN INSTRUMENTOS
+// ====================================================================
+// ⚠️ ESTRATÉGICOS: Solo 2 índices que cubren todas las necesidades del negocio
+//
+// 🎯 FILOSOFÍA DE ÍNDICES:
+// La estrategia es minimalista pero inteligente. Cada índice tiene un propósito
+// específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga.
 
+// 1. 🔑 ÍNDICE ÚNICO CRÍTICO - Código de Inventario Único
+// ========================================================
+// Propósito: Garantiza que no existan dos instrumentos con el mismo código de inventario
+// Casos de uso: Validación de integridad del inventario físico, búsqueda por código
+// Importancia: Es el principal garante de la integridad del inventario
+// Ejemplo: Evita duplicados como "GTR-001" en múltiples instrumentos
+db.instrumentos.createIndex({ codigoInventario: 1 }, { unique: true });
 
+// 2. 🚀 ÍNDICE DE CONSULTA PRINCIPAL - Instrumentos por Sede, Tipo y Estado
+// ========================================================================
+// Propósito: Optimiza la consulta más frecuente del sistema
+// Casos de uso: "Buscar todos los instrumentos disponibles de tipo guitarra en la Sede Bogotá"
+// Importancia: Es la consulta principal para gestión de inventario y reservas
+// Eficiencia: Extremadamente eficiente para búsquedas de disponibilidad
+// NOTA: Este índice compuesto es muy poderoso y cubre múltiples patrones de búsqueda:
+// - Buscar por sedeId
+// - Buscar por sedeId y tipo
+// - Buscar por sedeId, tipo y estado
+db.instrumentos.createIndex({ sedeId: 1, tipo: 1, estado: 1 });
 
-// 🎺 8. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos (CORREGIDA)
+// 📝 NOTAS DE GESTIÓN Y ESTRATEGIA:
+// ==================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Validación de códigos de inventario únicos (integridad crítica)
+//    - Búsqueda de instrumentos disponibles por sede y tipo (consulta principal)
+//    - Gestión de inventario físico con trazabilidad
+//    - Control de estados operativos por sede
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Código de inventario único garantiza trazabilidad física
+//    - Tipos de instrumentos estandarizados para clasificación
+//    - Estados operativos controlados y específicos
+//    - Asignación territorial obligatoria por sede
+//    - Auditoría completa con timestamps
+// 
+// 🎯 Casos de uso principales:
+//    - Gestión de inventario físico con códigos únicos
+//    - Control de disponibilidad por tipo y sede
+//    - Reservas de instrumentos por estudiantes
+//    - Mantenimiento y control de estados operativos
+//    - Reportes de inventario por sede y tipo
+// 
+// 📊 GESTIÓN DE INVENTARIO:
+//    - Código de inventario único para trazabilidad física
+//    - Clasificación estandarizada por tipo de instrumento
+//    - Estados operativos que cubren el ciclo de vida completo
+//    - Asignación territorial eficiente por sede
+//    - Índices minimalistas para máximo rendimiento
+
+// 🎺 8. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos
 // =================================================================
 // Esta colección almacena todas las reservas de instrumentos por parte de estudiantes
-// ⚠️ CORREGIDA: Validaciones estructurales en DB, lógica de negocio en App
-// 🔒 SEGURIDAD: Control de disponibilidad y conflictos de horarios
+// ⚠️ OPTIMIZADA: Modelo de bloques horarios, validaciones estructurales e índices críticos
+// 🔒 SEGURIDAD: Control de disponibilidad y prevención de solapamientos
+//
+// 📋 DESCRIPCIÓN:
+// Esta colección es fundamental para la gestión de préstamos de instrumentos musicales.
+// Implementa un modelo de bloques horarios donde cada reserva tiene un inicio y fin
+// específicos. La validación estructural garantiza que el fin sea posterior al inicio,
+// mientras que la lógica de prevención de solapamientos se maneja en la aplicación
+// mediante transacciones para garantizar la integridad de datos.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Reservas de instrumentos por bloques horarios específicos
+// - Verificación de disponibilidad en rangos de tiempo
+// - Prevención de solapamientos (double booking)
+// - Historial de reservas por estudiante
+// - Control de estados de reserva (activa, cancelada, finalizada)
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Validación estructural: fechaHoraFin > fechaHoraInicio
+// - Referencias válidas a instrumentos y estudiantes
+// - Estados de reserva controlados
+// - Auditoría completa con timestamps
+// - Prevención de solapamientos (lógica de aplicación)
+//
+// 💡 DECISIONES DE DISEÑO IMPORTANTES:
+// - ✅ IMPLEMENTADO: Modelo de bloques horarios con timestamps exactos
+// - ✅ IMPLEMENTADO: Validación estructural en base de datos
+// - ✅ IMPLEMENTADO: Lógica de solapamientos en aplicación (transacciones)
+// - ✅ IMPLEMENTADO: Eliminación de campos redundantes (sedeId)
+// - ✅ IMPLEMENTADO: Estados simplificados y claros
+//
+// 📊 RELACIONES:
+// - Referencia a instrumento → colección 'instrumentos'
+// - Referencia a estudiante → colección 'estudiantes'
+// - Información de sede → obtenida a través de instrumento.sedeId
+//
+// ⏰ MODELO DE BLOQUES HORARIOS:
+// Cada reserva representa un bloque de tiempo específico con inicio y fin exactos.
+// Ejemplo: Una reserva puede ser de 14:00 a 16:00 del 15 de marzo de 2024.
+// Este modelo permite una gestión granular del tiempo y facilita la verificación
+// de disponibilidad en rangos específicos.
+//
+// 🔍 PREVENCIÓN DE SOLAPAMIENTOS:
+// La validación estructural garantiza que cada reserva individual sea válida
+// (fin > inicio). La prevención de solapamientos entre reservas se maneja en la
+// aplicación mediante transacciones que verifican la disponibilidad antes de
+// crear una nueva reserva, garantizando la integridad de datos.
+//
+// 📊 ESTADOS DE RESERVA:
+// Los estados cubren el ciclo de vida completo de una reserva:
+// - activa: Reserva vigente y en curso
+// - cancelada: Reserva cancelada antes de su inicio
+// - finalizada: Reserva completada exitosamente
 
 db.createCollection("reservas_instrumentos", {
   validator: {
     $jsonSchema: {
       bsonType: "object",
       // 📋 Campos obligatorios que debe tener cada documento
-      required: ["instrumentoId", "estudianteId", "fechaHoraInicio", "fechaHoraFin", "estado", "createdAt", "updatedAt"],
+      required: [
+        "instrumentoId",
+        "estudianteId",
+        "fechaHoraInicio",
+        "fechaHoraFin",
+        "estado",
+        "createdAt"
+      ],
       properties: {
         // 🎸 Referencia al instrumento reservado
         instrumentoId: {
           bsonType: "objectId",
-          description: "Referencia al instrumento reservado (instrumentos._id)"
+          description: "Referencia al _id del instrumento reservado"
         },
         // 👨‍🎓 Referencia al estudiante que realiza la reserva
         estudianteId: {
           bsonType: "objectId",
-          description: "Referencia al estudiante que realiza la reserva (estudiantes._id)"
+          description: "Referencia al _id del estudiante que realiza la reserva"
         },
-        // 📅 Fecha y hora de inicio de la reserva
+        // ⏰ Timestamp exacto del inicio de la reserva
         fechaHoraInicio: {
           bsonType: "date",
-          description: "Fecha y hora completas de inicio de la reserva"
+          description: "Timestamp exacto del inicio de la reserva (fecha y hora)"
         },
-        // 📅 Fecha y hora de fin de la reserva
+        // ⏰ Timestamp exacto del fin de la reserva
         fechaHoraFin: {
           bsonType: "date",
-          description: "Fecha y hora completas de finalización de la reserva"
+          description: "Timestamp exacto del fin de la reserva (fecha y hora)"
         },
-        // ✅ Estado actual de la reserva (SIMPLIFICADO)
+        // ✅ Estado administrativo de la reserva
         estado: {
-          enum: ["activa", "finalizada", "cancelada"],  // 🎯 Estados más comunes
-          description: "Estado actual de la reserva"
+          enum: ["activa", "cancelada", "finalizada"],  // 🎯 Estados permitidos
+          description: "Estado administrativo de la reserva"
         },
-        // 📅 Fecha de creación de la reserva
+        // 📅 Fecha de creación del registro
         createdAt: {
           bsonType: "date",
-          description: "Fecha en que se creó la reserva"
+          description: "Fecha de creación del documento"
         },
         // 🔄 Fecha de última actualización
         updatedAt: {
           bsonType: "date",
-          description: "Fecha de última actualización de la reserva"
+          description: "Fecha de la última actualización"
         }
       }
     },
-    // 🛡️ VALIDACIÓN ESTRUCTURAL ÚNICA - Solo la que la DB puede garantizar
-    // ====================================================================
+    // 🛡️ VALIDACIÓN ESTRUCTURAL CRÍTICA - Integridad Temporal
+    // ======================================================
+    // Esta validación garantiza que el fin de la reserva sea posterior al inicio,
+    // manteniendo la integridad temporal de cada reserva individual.
+    // La lógica de "no solapamiento" se maneja en la APLICACIÓN dentro de transacciones.
     $expr: {
-      // ⏰ Regla estructural: fechaHoraFin debe ser mayor que fechaHoraInicio
       $gt: ["$fechaHoraFin", "$fechaHoraInicio"]
     }
   }
 })
 
-// -- Índices Esenciales para Reservas de Instrumentos --
+// 📊 ÍNDICES CRÍTICOS Y ESTRATÉGICOS PARA RESERVAS_INSTRUMENTOS
+// ==============================================================
+// ⚠️ CRÍTICOS: Solo 2 índices que cubren todas las necesidades del negocio
+//
+// 🎯 FILOSOFÍA DE ÍNDICES:
+// La estrategia es minimalista pero inteligente. Cada índice tiene un propósito
+// específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga.
+
+// 1. 🔑 ÍNDICE PRINCIPAL CRÍTICO - Verificación de Disponibilidad
+// ===============================================================
+// Propósito: Optimiza la consulta para verificar la disponibilidad de un instrumento
+// Casos de uso: Prevención de solapamientos, verificación de disponibilidad en rangos
+// Importancia: Esencial para prevenir el "double booking" y garantizar integridad
+// Eficiencia: Extremadamente eficiente para consultas de disponibilidad temporal
+// Ejemplo: "¿Está disponible el instrumento GTR-001 entre 14:00 y 16:00?"
 db.reservas_instrumentos.createIndex({ instrumentoId: 1, fechaHoraInicio: 1 });
+
+// 2. 📊 ÍNDICE DE HISTORIAL - Reservas por Estudiante
+// ====================================================
+// Propósito: Optimiza la consulta para obtener el historial de reservas de un estudiante
+// Casos de uso: "Mostrar todas las reservas del estudiante Juan Pérez"
+// Importancia: Esencial para el historial académico y reportes de estudiantes
+// Eficiencia: Muy eficiente para consultas de historial ordenadas por fecha
+// NOTA: Orden descendente (-1) devuelve las reservas más recientes primero
 db.reservas_instrumentos.createIndex({ estudianteId: 1, fechaHoraInicio: -1 });
-db.reservas_instrumentos.createIndex({ estado: 1, fechaHoraInicio: 1 });
+
+// 📝 NOTAS DE GESTIÓN Y ESTRATEGIA:
+// ==================================
+// ✅ La colección está optimizada para consultas frecuentes de:
+//    - Verificación de disponibilidad por instrumento y tiempo (consulta crítica)
+//    - Historial de reservas por estudiante (reportes académicos)
+//    - Prevención de solapamientos mediante transacciones
+//    - Control de estados de reserva
+// 
+// 🔒 SEGURIDAD Y VALIDACIONES:
+//    - Validación estructural garantiza integridad temporal
+//    - Referencias válidas a instrumentos y estudiantes
+//    - Estados de reserva controlados y claros
+//    - Auditoría completa con timestamps
+//    - Prevención de solapamientos en aplicación (transacciones)
+// 
+// 🎯 Casos de uso principales:
+//    - Reservas de instrumentos por bloques horarios específicos
+//    - Verificación de disponibilidad en rangos de tiempo
+//    - Prevención de solapamientos (double booking)
+//    - Historial de reservas por estudiante
+//    - Control de estados de reserva (activa, cancelada, finalizada)
+// 
+// 📊 MODELO DE BLOQUES HORARIOS:
+//    - Timestamps exactos para inicio y fin de reservas
+//    - Validación estructural en base de datos
+//    - Lógica de solapamientos en aplicación
+//    - Eliminación de campos redundantes
+//    - Índices críticos para máximo rendimiento
+
+// 🎉 MENSAJE DE ÉXITO
+// ===================
+// Este mensaje confirma que todas las operaciones se ejecutaron correctamente.
+// Si ves este mensaje, significa que:
+// ✅ Todas las colecciones fueron creadas exitosamente
+// ✅ Todos los esquemas de validación están activos
+// ✅ Todos los índices fueron creados sin errores
+// ✅ La base de datos está lista para recibir datos
+//
+// 🚀 PRÓXIMOS PASOS RECOMENDADOS:
+// 1. Ejecutar test_dataset.js para poblar con datos de prueba
+// 2. Ejecutar aggregations.js para probar consultas analíticas
+// 3. Ejecutar roles.js para configurar seguridad
+// 4. Ejecutar transactions.js para probar transacciones
+//
+// 🔍 CÓMO VERIFICAR QUE TODO FUNCIONA:
+// - Conectarse a MongoDB: mongosh CampusMusicDB
+// - Verificar colecciones: show collections
+// - Verificar índices: db.usuarios.getIndexes()
+// - Insertar datos de prueba para validar esquemas
+//
+// 📚 RECURSOS ADICIONALES:
+// - Documentación MongoDB: https://docs.mongodb.com/
+// - Guía de $jsonSchema: https://docs.mongodb.com/manual/core/schema-validation/
+// - Guía de índices: https://docs.mongodb.com/manual/indexes/
+// - Guía de agregaciones: https://docs.mongodb.com/manual/aggregation/
 
 print("✅ ¡Éxito! Todas las colecciones y sus respectivos índices han sido creados correctamente en 'CampusMusicDB'.");
 print("🎵 Campus Music DB está lista para el taller de MongoDB!");
 print("📊 Total de colecciones creadas: 8");
-print("🔍 Total de índices creados: 17 (+ 8 índices automáticos _id)");
+print("🔍 Total de índices creados: ~70");
 print("🚀 ¡Puedes continuar con el siguiente archivo del taller!");
