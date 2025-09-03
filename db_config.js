@@ -1,9 +1,54 @@
 // 🎵 CONFIGURACIÓN DE BASE DE DATOS CAMPUS MUSIC DB 🎵
 // =====================================================
-
+// 
+// 📚 DESCRIPCIÓN DEL PROYECTO:
+// Este archivo contiene la configuración completa de la base de datos MongoDB
+// para el sistema de gestión de Campus Music, una escuela de música que maneja
+// estudiantes, profesores, cursos, sedes, instrumentos y reservas.
+//
+// 🎯 OBJETIVOS DEL TALLER:
+// - Aprender MongoDB desde cero con un caso real
+// - Implementar validaciones robustas con $jsonSchema
+// - Crear índices optimizados para consultas eficientes
+// - Aplicar principios de normalización y denormalización
+// - Manejar transacciones y operaciones complejas
+//
+// 🏗️ ARQUITECTURA DE LA BASE DE DATOS:
+// - 7 colecciones principales interrelacionadas
+// - Validaciones a nivel de documento y colección
+// - Índices simples, compuestos y únicos
+// - Referencias mediante ObjectId para integridad referencial
+//
+// 🔧 TECNOLOGÍAS UTILIZADAS:
+// - MongoDB 6.0+ (versión recomendada)
+// - Mongosh (shell de MongoDB)
+// - $jsonSchema para validaciones
+// - $expr para validaciones de negocio complejas
+//
+// 📋 COLEECCIONES IMPLEMENTADAS:
+// 1. usuarios - Sistema de autenticación y roles
+// 2. sedes - Gestión de ubicaciones físicas
+// 3. cursos - Gestión de programas educativos
+// 4. profesores - Gestión del personal docente
+// 5. inscripciones - Gestión de matriculaciones
+// 6. instrumentos - Gestión de instrumentos musicales
+// 7. reservas_instrumentos - Gestión de préstamos
+//
+// 🚀 CÓMO EJECUTAR ESTE ARCHIVO:
+// 1. Asegúrate de tener MongoDB instalado y ejecutándose
+// 2. Abre una terminal en la carpeta del proyecto
+// 3. Ejecuta: mongosh --file db_config.js
+// 4. Verifica que aparezca el mensaje de éxito
+//
+// ⚠️ IMPORTANTE:
+// - Este script elimina las colecciones existentes antes de crearlas
+// - Úsalo solo en entornos de desarrollo/pruebas
+// - Para producción, considera usar migraciones incrementales
+//
 // 🔗 Conectamos o creamos la base de datos CampusMusicDB 
 // Esta línea establece la conexión con la base de datos MongoDB
 // Si no existe, MongoDB la creará automáticamente
+
 
 use('CampusMusicDB');
 
