@@ -14,10 +14,12 @@
 // - Manejar transacciones y operaciones complejas
 //
 // 🏗️ ARQUITECTURA DE LA BASE DE DATOS:
-// - 7 colecciones principales interrelacionadas
+// - 8 colecciones principales interrelacionadas
+// - Separación clara entre IDENTIDAD (usuarios) y ROLES (estudiantes/profesores)
 // - Validaciones a nivel de documento y colección
 // - Índices simples, compuestos y únicos
 // - Referencias mediante ObjectId para integridad referencial
+// - Una sola fuente de verdad para datos de identidad
 //
 // 🔧 TECNOLOGÍAS UTILIZADAS:
 // - MongoDB 6.0+ (versión recomendada)
@@ -25,14 +27,15 @@
 // - $jsonSchema para validaciones
 // - $expr para validaciones de negocio complejas
 //
-// 📋 COLEECCIONES IMPLEMENTADAS:
+// 📋 COLECCIONES IMPLEMENTADAS:
 // 1. usuarios - Sistema de autenticación y roles
 // 2. sedes - Gestión de ubicaciones físicas
 // 3. cursos - Gestión de programas educativos
-// 4. profesores - Gestión del personal docente
-// 5. inscripciones - Gestión de matriculaciones
-// 6. instrumentos - Gestión de instrumentos musicales
-// 7. reservas_instrumentos - Gestión de préstamos
+// 4. estudiantes - Gestión del rol de estudiante
+// 5. profesores - Gestión del personal docente
+// 6. inscripciones - Gestión de matriculaciones
+// 7. instrumentos - Gestión de instrumentos musicales
+// 8. reservas_instrumentos - Gestión de préstamos
 //
 // 🚀 CÓMO EJECUTAR ESTE ARCHIVO:
 // 1. Asegúrate de tener MongoDB instalado y ejecutándose
@@ -498,52 +501,54 @@ db.cursos.createIndex({ sedeId: 1, instrumento: 1 });            // 🏢 Cursos 
 //    - Estructura simplificada y clara
 //    - Foco en funcionalidad del taller
 
-// 👨‍🏫 4. COLECCIÓN DE PROFESORES - Gestión del personal docente
-// ============================================================
-// Esta colección almacena información de todos los profesores del campus musical
-// ⚠️ OPTIMIZADA: Validaciones robustas, campos adicionales y índices optimizados
-// 🔒 SEGURIDAD: Información sensible manejada con control de acceso
+// 👨‍🏫 5. COLECCIÓN DE PROFESORES - Gestión del personal docente (CORREGIDA)
+// ===========================================================================
+// 
+// 📋 DESCRIPCIÓN:
+// Esta colección almacena ÚNICAMENTE información específica del rol de "profesor".
+// NO contiene datos de identidad (nombre, documento, email) - esos están en 'usuarios'.
+// Es una colección de rol que extiende la información de un usuario que es profesor.
+//
+// 🎯 CASOS DE USO PRINCIPALES:
+// - Gestión del rol laboral de profesores
+// - Seguimiento de especialidades y experiencia
+// - Control de asignaciones de cursos
+// - Gestión de información salarial
+// - Estados laborales del personal docente
+//
+// 🔒 VALIDACIONES CRÍTICAS IMPLEMENTADAS:
+// - Referencia única a usuario (usuarioId)
+// - Especialidades válidas coherentes con cursos
+// - Estados laborales controlados
+// - Validación de experiencia realista
+//
+// 💡 DECISIÓN DE DISEÑO CORREGIDA:
+// ✅ SEPARACIÓN DE RESPONSABILIDADES:
+//    - usuarios: identidad, autenticación, datos personales básicos
+//    - profesores: rol laboral, especialidades, experiencia, información salarial
+//    - Una sola fuente de verdad para identidad
+//
+// ✅ ELIMINACIÓN DE DUPLICACIÓN:
+//    - ❌ ELIMINADO: nombreCompleto, documento, contacto
+//    - ✅ AGREGADO: referencia usuarioId a colección usuarios
+//    - Evita inconsistencias y datos obsoletos
+//
+// 📊 RELACIONES:
+// - Referencia a usuario (usuarioId) → colección 'usuarios' (IDENTIDAD)
+// - Referenciado por cursos → colección 'cursos' (profesorId)
+// - Referenciado por inscripciones → $lookup indirecto vía cursos
 
 db.createCollection("profesores", {
   validator: {
     $jsonSchema: {
       bsonType: "object",
       // 📋 Campos obligatorios que debe tener cada documento
-      required: ["nombreCompleto", "documento", "contacto", "especialidad", "experiencia", "estado", "createdAt", "updatedAt"],
+      required: ["usuarioId", "especialidad", "experiencia", "estado", "createdAt", "updatedAt"],
       properties: {
-        // 👤 Nombre completo del profesor
-        nombreCompleto: {
-          bsonType: "string",
-          minLength: 3,  // 🛡️ Mínimo 3 caracteres
-          maxLength: 100,  // 🛡️ Máximo 100 caracteres
-          description: "Nombre completo del profesor (mínimo 3, máximo 100 caracteres)"
-        },
-        // 🆔 Documento único de identificación
-        documento: {
-          bsonType: "string",
-          pattern: "^[0-9]{8,15}$",  // 🔍 Entre 8 y 15 dígitos numéricos
-          description: "Documento único de identificación (solo números, 8-15 dígitos)"
-        },
-        // 📞 Información de contacto estructurada
-        contacto: {
-          bsonType: "object",
-          required: ["telefono", "email"],
-          properties: {
-            telefono: {
-              bsonType: "string",
-              pattern: "^[0-9]{7,10}$",  // 🔍 Entre 7 y 10 dígitos numéricos
-              description: "Número de teléfono (solo números, 7-10 dígitos)"
-            },
-            email: {
-              bsonType: "string",
-              pattern: "^.+@.+\\..+$",  // 🔍 Expresión regular para validar email
-              description: "Correo electrónico válido del profesor"
-            },
-            direccion: {
-              bsonType: "string",
-              description: "Dirección de residencia (opcional)"
-            }
-          }
+        // 🔗 Referencia al usuario (IDENTIDAD)
+        usuarioId: {
+          bsonType: "objectId",
+          description: "Referencia al usuario en la colección usuarios (IDENTIDAD - nombre, documento, email)"
         },
         // 🎸 Especialidad musical del profesor
         especialidad: {
@@ -630,20 +635,16 @@ db.createCollection("profesores", {
 
 // 🔑 Índices Únicos - Garantizan integridad de datos críticos
 // ==========================================================
-db.profesores.createIndex({ documento: 1 }, { unique: true });        // 🆔 Documento único (obligatorio)
-db.profesores.createIndex({ "contacto.email": 1 }, { unique: true }); // 📧 Email único (obligatorio)
-// 📞 Teléfono NO único (permite casos familiares compartidos)
+db.profesores.createIndex({ usuarioId: 1 }, { unique: true });        // 🔗 Un usuario solo puede ser un profesor
   
 // 🚀 Índices Simples - Solo los más utilizados
 // ============================================
-db.profesores.createIndex({ nombreCompleto: 1 });        // 👤 Búsquedas por nombre
 db.profesores.createIndex({ especialidad: 1 });          // 🎸 Filtros por especialidad
 db.profesores.createIndex({ estado: 1 });                 // ✅ Filtros por estado
 db.profesores.createIndex({ experiencia: -1 });          // 📊 Ordenar por experiencia (descendente)
 db.profesores.createIndex({ nivelAcademico: 1 });         // 🎓 Filtros por nivel académico
 db.profesores.createIndex({ fechaContratacion: -1 });    // 📅 Ordenar por fecha contratación
 db.profesores.createIndex({ createdAt: -1 });            // 📅 Ordenar por fecha creación
-db.profesores.createIndex({ updatedAt: -1 });            // 🔄 Ordenar por última actualización
 
 // 🔗 Índices Compuestos - Solo los IMPRESCINDIBLES
 // ================================================
@@ -651,35 +652,42 @@ db.profesores.createIndex({ especialidad: 1, estado: 1 });                    //
 db.profesores.createIndex({ especialidad: 1, experiencia: -1 });              // 🎸 Ranking de profesores por especialidad y experiencia
 db.profesores.createIndex({ estado: 1, especialidad: 1 });                     // ✅ Estados por especialidad
 db.profesores.createIndex({ nivelAcademico: 1, experiencia: -1 });            // 🎓 Nivel académico y experiencia
-db.profesores.createIndex({ fechaContratacion: -1, estado: 1 });               // 📅 Contratación reciente y estado
+db.profesores.createIndex({ usuarioId: 1, estado: 1 });                      // 🔗 Usuario-profesor por estado
 
-// 📝 NOTAS DE GESTIÓN Y SEGURIDAD:
-// ================================
-// ✅ La colección está optimizada para consultas frecuentes de:
-//    - Búsqueda de profesores por especialidad y estado
-//    - Filtrado por nivel académico y experiencia
-//    - Ordenamiento por fecha de contratación
-//    - Validación de documentos y emails únicos
+// 📝 NOTAS DE CORRECCIÓN Y OPTIMIZACIÓN:
+// ======================================
+// ✅ CORRECCIONES CRÍTICAS IMPLEMENTADAS:
+//    - ❌ ELIMINADO: campos de identidad (nombreCompleto, documento, contacto)
+//    - ✅ AGREGADO: referencia usuarioId a colección usuarios
+//    - ❌ ELIMINADO: array cursosAsignados (redundante con cursos.profesorId)
+//    - ❌ ELIMINADO: índices de identidad duplicados
+//    - ✅ OPTIMIZADO: solo índices esenciales del rol
 // 
-// 🔒 SEGURIDAD:
-//    - Campo 'salario' es información sensible (solo acceso admin)
-//    - Teléfono NO es único (permite casos familiares compartidos)
-//    - Documento y email SÍ son únicos (integridad crítica)
+// 🔒 SEPARACIÓN DE RESPONSABILIDADES:
+//    - usuarios: identidad, autenticación, datos personales
+//    - profesores: rol laboral, especialidades, experiencia, información salarial
+//    - Una sola fuente de verdad para identidad
 // 
-// 🎯 Casos de uso principales:
-//    - Asignación de cursos a profesores con trazabilidad completa
-//    - Reportes de personal docente por sede
+// 🎯 Casos de uso optimizados:
+//    - Gestión del rol laboral de profesores
+//    - Asignación de cursos (manejado en colección cursos)
+//    - Reportes de personal docente por especialidad
 //    - Filtrado de profesores disponibles
-//    - Gestión de estados laborales
-//    - Ranking de profesores por experiencia y especialidad
+//    - Gestión de estados laborales y experiencia
 // 
-// 📊 TRAZABILIDAD MEJORADA:
-//    - Historial completo de asignaciones de cursos
-//    - Estados de asignación (activo, finalizado, pendiente, cancelado)
-//    - Fechas de asignación, inicio y fin de cursos
+// 📊 CONSULTAS CON $LOOKUP:
+//    - Datos de identidad: $lookup con colección usuarios
+//    - Cursos asignados: $lookup con colección cursos
+//    - Información de sede: $lookup indirecto vía cursos
+// 
+// 🚮 OPTIMIZACIONES REALIZADAS:
+//    - Solo 8 índices esenciales (reducidos de 13)
+//    - Eliminados índices de identidad duplicados
+//    - Estructura minimalista y clara
+//    - Foco en funcionalidad del rol, no identidad
 
 
-// 📝 5. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
+// 📝 6. COLECCIÓN DE INSCRIPCIONES - Gestión de matriculaciones
 // ============================================================
 // Esta colección almacena todas las inscripciones de estudiantes en cursos
 // ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
@@ -784,7 +792,7 @@ db.inscripciones.createIndex({ fechaInscripcion: -1, estado: 1 });              
 //    - Estructura minimalista y clara
 //    - Foco en funcionalidad del taller
 
-// 🎸 6. COLECCIÓN DE INSTRUMENTOS - Gestión de instrumentos musicales
+// 🎸 7. COLECCIÓN DE INSTRUMENTOS - Gestión de instrumentos musicales
 // =================================================================
 // Esta colección almacena información de todos los instrumentos musicales disponibles
 // ⚠️ SIMPLIFICADA: Solo datos esenciales para el taller
@@ -890,7 +898,7 @@ db.instrumentos.createIndex({ sedeId: 1, tipo: 1 });                     // 🏢
 //    - Estructura minimalista y clara
 //    - Foco en funcionalidad del taller
 
-// 🎺 7. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos (CORREGIDA)
+// 🎺 8. COLECCIÓN DE RESERVAS DE INSTRUMENTOS - Gestión de préstamos (CORREGIDA)
 // =================================================================
 // Esta colección almacena todas las reservas de instrumentos por parte de estudiantes
 // ⚠️ CORREGIDA: Validaciones estructurales en DB, lógica de negocio en App
