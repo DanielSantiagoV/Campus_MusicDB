@@ -155,6 +155,32 @@ db.createCollection("usuarios", {
 
 // 📊 ÍNDICES PARA OPTIMIZACIÓN DE CONSULTAS
 // =========================================
+//
+// 🎯 OBJETIVO DE LOS ÍNDICES:
+// Los índices mejoran significativamente el rendimiento de las consultas
+// al crear estructuras de datos optimizadas para búsquedas específicas.
+//
+// 📈 BENEFICIOS:
+// - Consultas más rápidas (de segundos a milisegundos)
+// - Menor uso de CPU y memoria
+// - Mejor experiencia de usuario
+// - Escalabilidad del sistema
+//
+// ⚖️ TRADE-OFFS:
+// - Ocupan espacio en disco
+// - Ralentizan operaciones de escritura (insert/update/delete)
+// - Requieren mantenimiento periódico
+//
+// 🔍 TIPOS DE ÍNDICES UTILIZADOS:
+// 1. Índices Únicos: Garantizan valores únicos (evitan duplicados)
+// 2. Índices Simples: Optimizan consultas por un solo campo
+// 3. Índices Compuestos: Optimizan consultas por múltiples campos
+//
+// 📊 ESTRATEGIA DE ÍNDICES:
+// - Creamos índices basados en patrones de consulta reales
+// - Priorizamos consultas frecuentes y críticas
+// - Evitamos índices redundantes o innecesarios
+// - Consideramos el orden de los campos en índices compuestos
 
 // 🔑 Índices Únicos - Garantizan que no haya duplicados
 // =====================================================
