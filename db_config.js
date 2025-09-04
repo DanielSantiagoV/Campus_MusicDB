@@ -1441,5 +1441,5 @@ db.reservas_instrumentos.createIndex({ estudianteId: 1, fechaHoraInicio: -1 });
 print("✅ ¡Éxito! Todas las colecciones y sus respectivos índices han sido creados correctamente en 'CampusMusicDB'.");
 print("🎵 Campus Music DB está lista para el taller de MongoDB!");
 print("📊 Total de colecciones creadas: 8");
-print("🔍 Total de índices creados: ~70");
+print("🔍 Total de índices creados: ~28");
 print("🚀 ¡Puedes continuar con el siguiente archivo del taller!");
