@@ -944,3 +944,262 @@ db.cursos.aggregate([
 
 ---
 
+## ⚡ Transacciones MongoDB
+
+Las transacciones MongoDB garantizan que múltiples operaciones se ejecuten de manera atómica, manteniendo la integridad de datos incluso en escenarios de alta concurrencia. Campus Music implementa transacciones para operaciones críticas del negocio.
+
+### 🎯 Escenario Principal: Inscripción de Estudiante
+
+**Problema de negocio**: Cuando un estudiante se inscribe en un curso, necesitamos:
+1. **Crear la inscripción** en la colección `inscripciones`
+2. **Decrementar los cupos disponibles** en la colección `cursos`
+
+**¿Por qué necesitamos transacciones?**
+- **Atomicidad**: Ambas operaciones deben ejecutarse o ninguna
+- **Consistencia**: Los cupos nunca deben ser negativos
+- **Concurrencia**: Prevenir "double booking" cuando múltiples estudiantes se inscriben simultáneamente
+
+### 🔧 Implementación Completa con Transacciones
+
+```javascript
+function inscribirEstudianteEnCurso(estudianteId, cursoId, costoCongelado) {
+    // 1️⃣ INICIAR SESIÓN
+    const session = db.getMongo().startSession();
+    const dbSession = session.getDatabase("CampusMusicDB");
+    
+    // 2️⃣ INICIAR TRANSACCIÓN
+    session.startTransaction();
+    
+    try {
+        // 3️⃣ VERIFICAR DISPONIBILIDAD
+        const curso = dbSession.cursos.findOne({ _id: cursoId });
+        
+        if (!curso) {
+            throw new Error("El curso no existe");
+        }
+        if (curso.cupos.disponibles <= 0) {
+            throw new Error("No hay cupos disponibles");
+        }
+        if (curso.estado !== "activo") {
+            throw new Error("El curso no está activo");
+        }
+        
+        // 4️⃣ VERIFICAR INSCRIPCIÓN DUPLICADA
+        const inscripcionExistente = dbSession.inscripciones.findOne({
+            estudianteId: estudianteId,
+            cursoId: cursoId,
+            estado: { $in: ["activa", "pendiente"] }
+        });
+        
+        if (inscripcionExistente) {
+            throw new Error("Estudiante ya inscrito en este curso");
+        }
+        
+        // 5️⃣ OPERACIÓN 1: INSERTAR INSCRIPCIÓN
+        const resultadoInscripcion = dbSession.inscripciones.insertOne({
+            estudianteId: estudianteId,
+            cursoId: cursoId,
+            costoCongelado: costoCongelado,
+            fechaInscripcion: new Date(),
+            estado: "activa",
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+        
+        // 6️⃣ OPERACIÓN 2: DECREMENTAR CUPOS
+        const resultadoCupos = dbSession.cursos.updateOne(
+            { 
+                _id: cursoId,
+                "cupos.disponibles": { $gt: 0 }  // Verificación adicional
+            },
+            { 
+                $inc: { "cupos.disponibles": -1 },
+                $set: { "updatedAt": new Date() }
+            }
+        );
+        
+        // 7️⃣ VERIFICAR ÉXITO DE ACTUALIZACIÓN
+        if (resultadoCupos.matchedCount === 0) {
+            throw new Error("No se pudo actualizar cupos (condición de carrera)");
+        }
+        
+        // 8️⃣ CONFIRMAR TRANSACCIÓN
+        session.commitTransaction();
+        
+        return {
+            success: true,
+            inscripcionId: resultadoInscripcion.insertedId,
+            cuposRestantes: curso.cupos.disponibles - 1
+        };
+        
+    } catch (error) {
+        // 9️⃣ REVERTIR TRANSACCIÓN
+        session.abortTransaction();
+        
+        return {
+            success: false,
+            error: error.message
+        };
+        
+    } finally {
+        // 🔚 FINALIZAR SESIÓN
+        session.endSession();
+    }
+}
+```
+
+### 🔄 Versión Simplificada (Sin Replica Set)
+
+Para entornos de desarrollo que no tienen replica set configurado:
+
+```javascript
+function inscribirEstudianteSimple(estudianteId, cursoId, costoCongelado) {
+    try {
+        // 1️⃣ VALIDACIONES PREVIAS
+        const curso = db.cursos.findOne({ _id: cursoId });
+        
+        if (!curso || curso.cupos.disponibles <= 0 || curso.estado !== "activo") {
+            throw new Error("Curso no válido o sin cupos");
+        }
+        
+        const inscripcionExistente = db.inscripciones.findOne({
+            estudianteId: estudianteId,
+            cursoId: cursoId,
+            estado: { $in: ["activa", "pendiente"] }
+        });
+        
+        if (inscripcionExistente) {
+            throw new Error("Estudiante ya inscrito");
+        }
+        
+        // 2️⃣ OPERACIÓN 1: INSERTAR INSCRIPCIÓN
+        const resultadoInscripcion = db.inscripciones.insertOne({
+            estudianteId: estudianteId,
+            cursoId: cursoId,
+            costoCongelado: costoCongelado,
+            fechaInscripcion: new Date(),
+            estado: "activa",
+            createdAt: new Date(),
+            updatedAt: new Date()
+        });
+        
+        // 3️⃣ OPERACIÓN 2: DECREMENTAR CUPOS
+        const resultadoCupos = db.cursos.updateOne(
+            { 
+                _id: cursoId,
+                "cupos.disponibles": { $gt: 0 }
+            },
+            { 
+                $inc: { "cupos.disponibles": -1 },
+                $set: { "updatedAt": new Date() }
+            }
+        );
+        
+        // 4️⃣ ROLLBACK MANUAL SI FALLA
+        if (resultadoCupos.matchedCount === 0) {
+            // ROLLBACK: Eliminar inscripción creada
+            db.inscripciones.deleteOne({ _id: resultadoInscripcion.insertedId });
+            throw new Error("Rollback ejecutado - cupos agotados");
+        }
+        
+        return { 
+            success: true, 
+            inscripcionId: resultadoInscripcion.insertedId,
+            mensaje: "Estudiante inscrito correctamente"
+        };
+        
+    } catch (error) {
+        return { 
+            success: false, 
+            error: error.message 
+        };
+    }
+}
+```
+
+### 🛡️ Garantías de Integridad Implementadas
+
+#### ✅ **Validaciones Previas**
+- **Existencia del curso**: Verificar que el curso exista en la base de datos
+- **Cupos disponibles**: Confirmar que hay al menos 1 cupo libre
+- **Estado del curso**: Solo permitir inscripciones en cursos activos
+- **Inscripciones duplicadas**: Prevenir múltiples inscripciones del mismo estudiante
+
+#### 🔒 **Protección contra Condiciones de Carrera**
+```javascript
+// Verificación atómica con condición
+db.cursos.updateOne(
+    { 
+        _id: cursoId,
+        "cupos.disponibles": { $gt: 0 }  // Solo actualizar si hay cupos
+    },
+    { 
+        $inc: { "cupos.disponibles": -1 }  // Decrementar atómicamente
+    }
+)
+```
+
+#### 🔄 **Manejo de Errores y Rollback**
+- **Transacciones reales**: `session.abortTransaction()` revierte automáticamente
+- **Rollback manual**: Para MongoDB standalone sin replica set
+- **Estados consistentes**: Nunca dejar datos en estado intermedio
+- **Mensajes claros**: Errores específicos para debugging
+
+### 📊 Casos de Uso de Transacciones
+
+#### 🎓 **Inscripción de Estudiante**
+- **Operaciones**: Insertar inscripción + decrementar cupos
+- **Riesgo**: Sobrecupo por concurrencia
+- **Solución**: Transacción atómica con validaciones
+
+#### 🎸 **Reserva de Instrumento**
+- **Operaciones**: Crear reserva + cambiar estado instrumento
+- **Riesgo**: "Double booking" del mismo instrumento
+- **Solución**: Verificación de disponibilidad temporal
+
+#### 💰 **Cancelación de Curso**
+- **Operaciones**: Cancelar inscripciones + liberar cupos + reembolsos
+- **Riesgo**: Estados inconsistentes en cancelaciones masivas
+- **Solución**: Transacción que maneja todas las operaciones
+
+### 🚀 Beneficios de las Transacciones
+
+#### ⚡ **Atomicidad**
+- **Todo o nada**: Todas las operaciones se ejecutan o ninguna
+- **Sin estados intermedios**: Los datos nunca quedan inconsistentes
+- **Rollback automático**: En caso de error, todo se revierte
+
+#### 🔒 **Consistencia**
+- **Reglas de negocio**: Los cupos nunca serán negativos
+- **Integridad referencial**: Las referencias siempre son válidas
+- **Validaciones**: Todas las reglas se cumplen siempre
+
+#### 🏃‍♂️ **Concurrencia**
+- **Múltiples usuarios**: Maneja inscripciones simultáneas
+- **Bloqueos optimistas**: No bloquea innecesariamente
+- **Condiciones de carrera**: Previene problemas de concurrencia
+
+#### 📊 **Confiabilidad**
+- **Recuperación ante fallos**: Sistema robusto ante errores
+- **Auditoría completa**: Timestamps de todas las operaciones
+- **Trazabilidad**: Historial completo de cambios
+
+### 🎯 Consideraciones de Implementación
+
+#### 🏗️ **Requisitos Técnicos**
+- **Replica Set**: Necesario para transacciones reales de MongoDB
+- **MongoDB 4.0+**: Versión mínima para soporte de transacciones
+- **Conexión estable**: Red confiable para operaciones distribuidas
+
+#### 📈 **Escalabilidad**
+- **Sesiones por operación**: Cada transacción usa su propia sesión
+- **Timeouts configurables**: Previene transacciones colgadas
+- **Retry logic**: Reintentos automáticos en fallos temporales
+
+#### 🔧 **Alternativas para Desarrollo**
+- **Rollback manual**: Para MongoDB standalone
+- **Validaciones robustas**: Prevención en lugar de corrección
+- **Operaciones idempotentes**: Seguras para reintento
+
+---
+
