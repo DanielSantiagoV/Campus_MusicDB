@@ -2,16 +2,35 @@
 // ROLES.JS - RBAC CAMPUS MUSIC DB
 // Crear y asignar roles con diferentes permisos sobre la base de datos
 // ================================================================================
-// PASO A PASO COMPLETO PARA HACER FUNCIONAR EL RBAC
+// GUÍA COMPLETA PASO A PASO PARA IMPLEMENTAR RBAC
 // ================================================================================
+
+// 🎯 PREREQUISITOS OBLIGATORIOS:
+// ==============================
+// ✅ MongoDB Community Server instalado (https://www.mongodb.com/try/download/community)
+// ✅ MongoDB corriendo como servicio o manualmente
+// ✅ mongosh disponible en tu sistema
+//
+// 🔍 VERIFICAR PREREQUISITOS:
+// ---------------------------
+// 1. Verificar MongoDB: net start MongoDB  (Windows) o brew services start mongodb (Mac)
+// 2. Verificar conexión: mongosh  (debe conectar sin errores)
+// 3. Si no tienes MongoDB: instalar desde link de arriba
+//
+// ⚠️  SI MONGODB NO ESTÁ INSTALADO:
+// --------------------------------
+// Windows: Descargar .msi → Ejecutar como admin → Marcar "Install as Service"
+// Mac: brew install mongodb-community
+// Linux: sudo apt install mongodb (Ubuntu) o equivalente
 
 // 🚀 PASO A PASO COMPLETO - DETALLE A DETALLE:
 // ============================================
 //
 // PASO 1: PREPARAR MONGODB
 // ------------------------
-// 1.1. Asegúrate de que MongoDB esté ejecutándose
+// 1.1. Asegúrate de que MongoDB esté ejecutándose: net start MongoDB
 // 1.2. Conecta sin autenticación primero: mongosh
+// 1.3. Si da error "ECONNREFUSED": MongoDB no está corriendo o no está instalado
 //
 // PASO 2: EJECUTAR ARCHIVOS EN ORDEN
 // ----------------------------------
@@ -419,6 +438,25 @@ print("db.sedes.find().count()                           // ✅ Ver sedes");
 print("db.cursos.find({estado: 'activo'}).count()        // ✅ Ver cursos");
 print("db.usuarios.insertOne({username: 'test', documento: '99999999', email: 'test@test.com', password: 'hash', rol: 'admin', estado: 'activo', createdAt: new Date()})  // ✅ Crear usuario");
 print("db.sedes.insertOne({nombre: 'Test Sede', ciudad: 'Test', direccion: 'Test 123', capacidad: 50, telefono: '3001234567', email: 'test@test.com', estado: 'activa', createdAt: new Date()})  // ✅ Crear sede");
+print("");
+print("// EJEMPLOS PRÁCTICOS COMPLETOS:");
+print("// Ver todos los estudiantes inscritos:");
+print("db.estudiantes.find({}, {nombre: 1, apellido: 1, email: 1})");
+print("// Crear un nuevo curso:");
+print("db.cursos.insertOne({");
+print("  nombre: 'Guitarra Avanzada Test',");
+print("  descripcion: 'Curso de prueba para admin',");
+print("  nivel: 'avanzado',");
+print("  duracion_semanas: 12,");
+print("  precio: 350000,");
+print("  cupos_disponibles: 15,");
+print("  estado: 'activo',");
+print("  sede_id: ObjectId('507f1f77bcf86cd799439011'),");
+print("  profesor_id: ObjectId('507f1f77bcf86cd799439011'),");
+print("  createdAt: new Date()");
+print("})");
+print("// Eliminar el curso de prueba:");
+print("db.cursos.deleteOne({nombre: 'Guitarra Avanzada Test'})");
 
 print("\n👔 PROBAR EMPLEADO:");
 print("// Conectar:");
@@ -429,9 +467,28 @@ print("db.estudiantes.find().count()                     // ✅ Ver estudiantes"
 print("db.cursos.find().count()                          // ✅ Ver cursos");
 print("db.inscripciones.find().count()                   // ✅ Ver inscripciones");
 print("");
+print("// EJEMPLOS PRÁCTICOS EMPLEADO:");
+print("// Registrar una nueva inscripción:");
+print("db.inscripciones.insertOne({");
+print("  estudiante_id: ObjectId('507f1f77bcf86cd799439011'),");
+print("  curso_id: ObjectId('507f1f77bcf86cd799439012'),");
+print("  fecha_inscripcion: new Date(),");
+print("  estado: 'activa',");
+print("  metodo_pago: 'efectivo',");
+print("  descuento_aplicado: 0");
+print("})");
+print("// Reservar un instrumento:");
+print("db.reservas_instrumentos.insertOne({");
+print("  estudiante_id: ObjectId('507f1f77bcf86cd799439011'),");
+print("  instrumento_id: ObjectId('507f1f77bcf86cd799439013'),");
+print("  fecha_reserva: new Date(),");
+print("  duracion_horas: 2,");
+print("  estado: 'activa'");
+print("})");
+print("");
 print("// Pruebas que DEBEN fallar:");
-print("db.usuarios.insertOne({...})                      // ❌ Error: not authorized");
-print("db.sedes.insertOne({...})                         // ❌ Error: not authorized");
+print("db.usuarios.insertOne({username: 'hack', documento: '123'})  // ❌ Error: not authorized");
+print("db.sedes.insertOne({nombre: 'Sede Falsa'})                   // ❌ Error: not authorized");
 
 print("\n👨‍🎓 PROBAR ESTUDIANTE:");
 print("// Conectar:");
@@ -442,34 +499,128 @@ print("db.cursos.find({estado: 'activo'})                // ✅ Ver cursos dispo
 print("db.sedes.find()                                   // ✅ Ver sedes");
 print("db.inscripciones.find().count()                   // ✅ Ver inscripciones");
 print("");
+print("// EJEMPLOS PRÁCTICOS ESTUDIANTE:");
+print("// Ver cursos de guitarra disponibles:");
+print("db.cursos.find({");
+print("  nombre: /guitarra/i,");
+print("  estado: 'activo',");
+print("  cupos_disponibles: {$gt: 0}");
+print("}, {nombre: 1, nivel: 1, precio: 1, cupos_disponibles: 1})");
+print("");
+print("// Reservar un instrumento (ejemplo real):");
+print("db.reservas_instrumentos.insertOne({");
+print("  estudiante_id: ObjectId('674b8f2e5d4e8a1b2c3d4e5f'),  // Tu ID como estudiante");
+print("  instrumento_id: ObjectId('674b8f2e5d4e8a1b2c3d4e60'),  // ID de guitarra disponible");
+print("  fecha_reserva: new Date(),");
+print("  hora_inicio: '14:00',");
+print("  hora_fin: '16:00',");
+print("  duracion_horas: 2,");
+print("  estado: 'activa',");
+print("  observaciones: 'Práctica para examen final'");
+print("})");
+print("");
+print("// Ver mis inscripciones activas:");
+print("db.inscripciones.find({");
+print("  estudiante_id: ObjectId('674b8f2e5d4e8a1b2c3d4e5f'),");
+print("  estado: 'activa'");
+print("})");
+print("");
 print("// Pruebas que DEBEN fallar:");
 print("db.usuarios.find()                                // ❌ Error: not authorized");
-print("db.estudiantes.insertOne({...})                   // ❌ Error: not authorized");
+print("db.estudiantes.insertOne({nombre: 'Hack'})        // ❌ Error: not authorized");
+print("db.inscripciones.insertOne({...})                 // ❌ Error: not authorized (solo empleados)");
 
-print("\n🔍 COMANDOS DE VERIFICACIÓN:");
-print("----------------------------");
-print("// Ver todos los roles creados:");
+print("\n🔍 COMANDOS DE VERIFICACIÓN Y VALIDACIÓN:");
+print("==========================================");
+print("");
+print("// 1. VERIFICAR QUE MONGODB ESTÁ CORRIENDO:");
+print("//    Ejecutar ANTES de todo: mongosh");
+print("//    Si conecta sin errores = MongoDB OK ✅");
+print("");
+print("// 2. VERIFICAR QUE LA BASE DE DATOS EXISTE:");
+print("show dbs                                      // Debe aparecer CampusMusicDB");
+print("use CampusMusicDB");
+print("show collections                              // Debe mostrar todas las colecciones");
+print("");
+print("// 3. VERIFICAR ROLES CREADOS:");
 print("db.runCommand({ rolesInfo: 1, showPrivileges: false })");
+print("// Debe mostrar: administrador, empleado_sede, estudiante");
 print("");
-print("// Ver todos los usuarios:");
+print("// 4. VERIFICAR USUARIOS CREADOS:");
 print("db.runCommand({ usersInfo: 1 })");
+print("// Debe mostrar: admin_campus, empleado_bogota, empleado_medellin, empleado_cali, estudiante1, estudiante2, estudiante3");
 print("");
-print("// Ver roles de un usuario específico:");
-print("db.runCommand({ usersInfo: 'admin_campus' })");
+print("// 5. VERIFICAR PERMISOS DE UN USUARIO ESPECÍFICO:");
+print("db.runCommand({ usersInfo: 'admin_campus', showPrivileges: true })");
+print("db.runCommand({ usersInfo: 'empleado_bogota', showPrivileges: true })");
+print("db.runCommand({ usersInfo: 'estudiante1', showPrivileges: true })");
 print("");
-print("// Ver quién está conectado actualmente:");
+print("// 6. VERIFICAR QUIÉN ESTÁ CONECTADO:");
 print("db.runCommand({ connectionStatus: 1 })");
+print("");
+print("// 7. PROBAR AUTENTICACIÓN (después de habilitar auth):");
+print("//    Cada comando debe conectar SIN errores:");
+print("//    mongosh -u admin_campus -p admin123456 --authenticationDatabase CampusMusicDB");
+print("//    mongosh -u empleado_bogota -p empleado123 --authenticationDatabase CampusMusicDB");
+print("//    mongosh -u estudiante1 -p estudiante123 --authenticationDatabase CampusMusicDB");
+print("");
+print("// 8. VALIDAR PERMISOS FUNCIONAN CORRECTAMENTE:");
+print("//    Como admin: db.usuarios.find()           → ✅ Debe funcionar");
+print("//    Como empleado: db.usuarios.find()        → ❌ Debe dar error");
+print("//    Como estudiante: db.usuarios.find()      → ❌ Debe dar error");
 
-print("\n⚠️  SOLUCIÓN DE PROBLEMAS:");
-print("-------------------------");
-print("// Si MongoDB ya tiene autenticación, conecta como admin primero:");
-print("mongosh -u admin -p password --authenticationDatabase admin");
+print("\n⚠️  SOLUCIÓN DE PROBLEMAS COMUNES:");
+print("==================================");
 print("");
-print("// Si olvidas la contraseña de admin, reinicia MongoDB sin --auth:");
-print("mongod --dbpath C:\\data\\db  (sin --auth)");
+print("🚨 ERROR: 'mongod' is not recognized");
+print("CAUSA: MongoDB Server no está instalado o no está en PATH");
+print("SOLUCIÓN: Instalar MongoDB Community Server desde mongodb.com/try/download/community");
 print("");
-print("// Para eliminar todos los usuarios y empezar de nuevo:");
+print("🚨 ERROR: MongoNetworkError: connect ECONNREFUSED 127.0.0.1:27017");
+print("CAUSA: MongoDB no está ejecutándose");
+print("SOLUCIÓN: net start MongoDB  (Windows) o sudo systemctl start mongod (Linux)");
+print("");
+print("🚨 ERROR: Authentication failed");
+print("CAUSA: Usuario/contraseña incorrectos o autenticación no habilitada");
+print("SOLUCIÓN 1: Verificar que ejecutaste este archivo ANTES de habilitar auth");
+print("SOLUCIÓN 2: Si ya tienes auth, conecta como admin existente primero:");
+print("        mongosh -u admin -p password --authenticationDatabase admin");
+print("");
+print("🚨 ERROR: not authorized to execute command");
+print("CAUSA: El usuario no tiene permisos para esa operación");
+print("SOLUCIÓN: ¡Esto es NORMAL! Significa que RBAC está funcionando correctamente");
+print("");
+print("🚨 EMERGENCIA: Olvidé la contraseña del admin");
+print("SOLUCIÓN: Reiniciar MongoDB SIN autenticación:");
+print("1. net stop MongoDB");
+print("2. mongod --dbpath C:\\data\\db  (SIN --auth)");
+print("3. Conectar: mongosh");
+print("4. Recrear usuarios con este archivo");
+print("");
+print("🚨 RESET COMPLETO:");
+print("Para eliminar TODOS los usuarios y empezar de nuevo:");
 print("db.runCommand({ usersInfo: 1 }).users.forEach(u => db.dropUser(u.user))");
+print("db.runCommand({ rolesInfo: 1 }).roles.forEach(r => { if(!r.isBuiltin) db.dropRole(r.role) })");
+
+// ================================================================================
+// 9. CHECKLIST FINAL DE VALIDACIÓN
+// ================================================================================
+print("\n✅ CHECKLIST FINAL - VALIDAR QUE TODO FUNCIONA:");
+print("===============================================");
+print("");
+print("□ 1. MongoDB está corriendo: mongosh (conecta sin errores)");
+print("□ 2. Base de datos creada: show dbs → debe aparecer CampusMusicDB");
+print("□ 3. Datos de prueba insertados: db.estudiantes.find().count() > 0");
+print("□ 4. Roles creados: db.runCommand({rolesInfo: 1}) → 3 roles custom");
+print("□ 5. Usuarios creados: db.runCommand({usersInfo: 1}) → 7 usuarios");
+print("□ 6. Autenticación habilitada: mongosh (debe pedir credenciales)");
+print("□ 7. Admin puede todo: conectar como admin → db.usuarios.find() ✅");
+print("□ 8. Empleado limitado: conectar como empleado → db.usuarios.find() ❌");
+print("□ 9. Estudiante limitado: conectar como estudiante → db.usuarios.find() ❌");
+print("");
+print("🎯 SI TODOS LOS PUNTOS ESTÁN ✅ = RBAC FUNCIONANDO PERFECTAMENTE!");
+print("");
+print("📞 SOPORTE: Si algún punto falla, revisa la sección '⚠️ SOLUCIÓN DE PROBLEMAS'");
 
 print("\n✅ RBAC configurado con sintaxis del taller!");
 print("🔒 Usuarios creados con db.createUser()");
