@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2025 Daniel Santiago 
+Copyright (c) 2025 Campus Music DB Project
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,26 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+Campus Music DB - MongoDB Educational Project
+
+This project demonstrates a complete migration from spreadsheet-based management 
+to a professional MongoDB NoSQL database system for a multi-city music school.
+
+Features:
+- Complete MongoDB schema design with validations
+- Role-based access control (RBAC) implementation
+- Transactional operations for data integrity
+- Advanced aggregation pipelines for business analytics
+- Comprehensive test dataset with realistic scenarios
+- Professional documentation and best practices
+
+Educational Purpose:
+This project serves as a comprehensive learning resource for MongoDB concepts,
+including document design, validation, aggregation, transactions, and security
+implementation in a real-world business context.
+
+For educational and demonstration purposes only.
+Not intended for production use without proper review and adaptation.

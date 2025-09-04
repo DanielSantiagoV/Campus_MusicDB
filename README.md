@@ -1886,4 +1886,20 @@ Campus Music DB representa un **caso de estudio completo** de migración exitosa
 
 *Desarrollado como proyecto educativo para demostrar las capacidades de MongoDB en un escenario de negocio real.*
 
+---
+
+*Este proyecto cumple con todos los requerimientos  y proporciona una base sólida para sistemas de gestión comercial con MongoDB.*
+
+
+---
+### Información de Contacto
+- **GitHub**: [@DanielSantiagoV](https://github.com/DanielSantiagoV)
+
+
+---
+
+<p align="center">
+  Developed with ❤️ by Estudiantes de Bases de Datos<br>
+  🔥 <b><a href="https://github.com/DanielSantiagoV">Visit my GitHub</a></b> 🚀
+</p>
 
