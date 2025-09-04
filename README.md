@@ -406,3 +406,137 @@ fechaDevolucion: {
 
 ---
 
+## 📊 Índices MongoDB
+
+Los índices son estructuras de datos que mejoran significativamente el rendimiento de las consultas. Campus Music implementa una **estrategia minimalista pero inteligente** con índices específicos que cubren múltiples casos de uso sin redundancia.
+
+### 🎯 Filosofía de Índices
+
+**Principio**: Cada índice tiene un propósito específico y cubre múltiples casos de uso. No hay redundancia ni sobrecarga innecesaria.
+
+- **Minimalistas**: Solo los índices esenciales para el negocio
+- **Estratégicos**: Cada uno optimiza las consultas más frecuentes  
+- **Únicos**: Garantizan integridad referencial y reglas de negocio
+- **Compuestos**: Combinan múltiples campos para máxima eficiencia
+
+### 📋 Lista Completa de Índices
+
+#### 👥 Colección `usuarios`
+```javascript
+// 1. Username único (login)
+db.usuarios.createIndex({ username: 1 }, { unique: true });
+
+// 2. Email único (recuperación de cuenta)  
+db.usuarios.createIndex({ email: 1 }, { unique: true });
+
+// 3. Documento único (identificación legal)
+db.usuarios.createIndex({ documento: 1 }, { unique: true });
+```
+**Justificación**: Garantiza unicidad en los 3 identificadores críticos del sistema de autenticación.
+
+#### 🏢 Colección `sedes`
+```javascript
+// 1. Nombre único (identificador de negocio)
+db.sedes.createIndex({ nombre: 1 }, { unique: true });
+
+// 2. Ciudad + dirección única (prevención de duplicados geográficos)
+db.sedes.createIndex({ ciudad: 1, direccion: 1 }, { unique: true });
+
+// 3. Consulta principal (sedes por ciudad y estado)
+db.sedes.createIndex({ ciudad: 1, estado: 1 });
+```
+**Justificación**: Optimiza consultas geográficas y previene duplicados de ubicaciones físicas.
+
+#### 👨‍🎓 Colección `estudiantes`
+```javascript
+// 1. Relación 1:1 única con usuarios
+db.estudiantes.createIndex({ usuarioId: 1 }, { unique: true });
+
+// 2. Consulta principal (estudiantes por sede y estado)
+db.estudiantes.createIndex({ sedeId: 1, estado: 1 });
+```
+**Justificación**: Garantiza integridad referencial y optimiza la consulta operativa más común.
+
+#### 👨‍🏫 Colección `profesores`  
+```javascript
+// 1. Relación 1:1 única con usuarios
+db.profesores.createIndex({ usuarioId: 1 }, { unique: true });
+
+// 2. Consulta principal (profesores por sede, especialidad y estado)
+db.profesores.createIndex({ sedeId: 1, especialidades: 1, estado: 1 });
+```
+**Justificación**: Integridad referencial y búsquedas eficientes por especialidad y ubicación.
+
+#### 📚 Colección `cursos`
+```javascript
+// 1. Nombre único por sede (prevención de duplicados)
+db.cursos.createIndex({ nombre: 1, sedeId: 1 }, { unique: true });
+
+// 2. Catálogo principal (cursos por sede y estado)
+db.cursos.createIndex({ sedeId: 1, estado: 1 });
+
+// 3. Asignación profesoral (cursos por profesor)
+db.cursos.createIndex({ profesorId: 1 });
+```
+**Justificación**: Evita cursos duplicados por sede y optimiza el catálogo académico principal.
+
+#### 📝 Colección `inscripciones`
+```javascript
+// 1. Prevención de duplicados (estudiante + curso único)
+db.inscripciones.createIndex({ estudianteId: 1, cursoId: 1 }, { unique: true });
+
+// 2. Control de cupos (inscripciones por curso y estado)
+db.inscripciones.createIndex({ cursoId: 1, estado: 1 });
+
+// 3. Historial académico (inscripciones por estudiante)
+db.inscripciones.createIndex({ estudianteId: 1, fechaInscripcion: -1 });
+```
+**Justificación**: Previene inscripciones duplicadas y optimiza consultas de cupos e historial.
+
+#### 🎸 Colección `instrumentos`
+```javascript
+// 1. Código de inventario único (integridad del inventario físico)
+db.instrumentos.createIndex({ codigoInventario: 1 }, { unique: true });
+
+// 2. Consulta principal (instrumentos por sede, tipo y estado)
+db.instrumentos.createIndex({ sedeId: 1, tipo: 1, estado: 1 });
+```
+**Justificación**: Garantiza unicidad del inventario físico y optimiza búsquedas de disponibilidad.
+
+#### 🎺 Colección `reservas_instrumentos`
+```javascript
+// 1. Verificación de disponibilidad (instrumento + fecha)
+db.reservas_instrumentos.createIndex({ instrumentoId: 1, fechaHoraInicio: 1 });
+
+// 2. Historial de reservas (reservas por estudiante)
+db.reservas_instrumentos.createIndex({ estudianteId: 1, fechaHoraInicio: -1 });
+```
+**Justificación**: Previene "double booking" y optimiza consultas de historial temporal.
+
+### 🚀 Beneficios Técnicos
+
+#### ⚡ Rendimiento
+- **Consultas rápidas**: Índices optimizan las consultas más frecuentes del sistema
+- **Escalabilidad**: Rendimiento constante independientemente del tamaño de datos
+- **Ordenamiento eficiente**: Índices descendentes (-1) para historiales cronológicos
+
+#### 🔒 Integridad de Datos
+- **Índices únicos**: Previenen duplicados en identificadores críticos
+- **Relaciones 1:1**: Garantizan integridad referencial entre colecciones
+- **Reglas de negocio**: Evitan inconsistencias como cursos duplicados por sede
+
+#### 📊 Casos de Uso Optimizados
+- **Autenticación**: Login rápido por username, email o documento
+- **Catálogos**: Consultas eficientes de cursos e instrumentos por sede
+- **Historiales**: Acceso rápido a inscripciones y reservas por estudiante
+- **Gestión**: Asignaciones de profesores y control de cupos en tiempo real
+
+#### 🎯 Estrategia Minimalista
+- **28 índices totales** para 8 colecciones (8 automáticos `_id` + 20 personalizados)
+- **Promedio 3.5 índices por colección** incluyendo los automáticos
+- **Cada índice sirve múltiples propósitos** operativos y de integridad
+- **Sin redundancia**: No hay índices que se solapen en funcionalidad
+- **Mantenimiento eficiente**: Índices optimizados = actualizaciones más rápidas
+
+---
+
