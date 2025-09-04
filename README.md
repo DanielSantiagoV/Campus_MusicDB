@@ -540,3 +540,407 @@ db.reservas_instrumentos.createIndex({ estudianteId: 1, fechaHoraInicio: -1 });
 
 ---
 
+## 🎲 Estructura de los Datos de Prueba
+
+El archivo `test_dataset.js` contiene un conjunto de datos realistas y coherentes que simula el funcionamiento de una escuela de música multi-sede. Los datos están diseñados para probar todas las funcionalidades del sistema y demostrar relaciones complejas entre colecciones.
+
+### 📊 Resumen de Datos de Prueba
+
+| Colección | Cantidad | Descripción |
+|-----------|----------|-------------|
+| **sedes** | 3 | Bogotá (activa), Medellín (activa), Cali (inactiva) |
+| **usuarios** | 25 | 10 profesores + 15 estudiantes con autenticación |
+| **profesores** | 10 | Personal docente con especialidades variadas |
+| **estudiantes** | 15 | Alumnado con diferentes niveles musicales |
+| **instrumentos** | 20 | Inventario distribuido en las 3 sedes |
+| **cursos** | 15 | Programas académicos (5 por sede) |
+| **inscripciones** | 30 | Matriculaciones con estados variados |
+| **reservas_instrumentos** | 10 | Sistema de préstamos activo |
+
+### 🏫 Datos por Sede
+
+#### 🏢 Campus Music - Chapinero (Bogotá)
+- **Capacidad**: 150 estudiantes
+- **Estado**: Activa
+- **Profesores**: 4 docentes (piano, guitarra, violín, canto)
+- **Instrumentos**: 7 instrumentos (incluyendo piano de cola Steinway)
+- **Cursos**: 5 programas (Piano Básico, Guitarra Intermedia, Violín Avanzado, etc.)
+
+#### 🏢 Campus Music - El Poblado (Medellín)  
+- **Capacidad**: 100 estudiantes
+- **Estado**: Activa
+- **Profesores**: 4 docentes (piano, guitarra/bajo, batería, canto)
+- **Instrumentos**: 6 instrumentos (guitarra Fender, batería electrónica Roland)
+- **Cursos**: 5 programas (Piano Intermedio, Batería de Rock, Bajo Eléctrico, etc.)
+
+#### 🏢 Campus Music - Granada (Cali)
+- **Capacidad**: 80 estudiantes  
+- **Estado**: Inactiva
+- **Profesores**: 2 docentes (violín, canto)
+- **Instrumentos**: 7 instrumentos (varios en mantenimiento)
+- **Cursos**: 5 programas (Piano Salsero, Teoría Musical Avanzada, etc.)
+
+### 👥 Perfiles de Usuario
+
+#### 👨‍🏫 Profesores (10 total)
+- **Niveles académicos**: Técnico, profesional, especialización, maestría, doctorado
+- **Especialidades**: Piano (3), guitarra (3), violín (2), canto (3), batería (1), bajo (2)
+- **Experiencia**: 5-20 años de experiencia profesional
+- **Estados**: 8 activos, 1 inactivo, 1 suspendido
+
+#### 👨‍🎓 Estudiantes (15 total)
+- **Niveles musicales**: 5 básico, 5 intermedio, 5 avanzado
+- **Instrumentos de interés**: Distribuidos equitativamente entre todos los instrumentos
+- **Estados**: 12 activos, 1 inactivo, 1 suspendido, 1 egresado
+- **Distribución por sede**: 5 Bogotá, 5 Medellín, 5 Cali
+
+### 🎸 Inventario de Instrumentos
+
+#### Por Tipo de Instrumento
+- **Guitarras**: 4 instrumentos (Yamaha C40, Fender Stratocaster, Ibanez Gio, Taylor)
+- **Pianos**: 4 instrumentos (Roland FP-30, Yamaha P-125, Casio Privia, Steinway)
+- **Violines**: 4 instrumentos (Stentor Student, Hoffman Allegro, Cremona SV-75, Yamaha eléctrico)
+- **Baterías**: 4 instrumentos (Pearl Roadshow, Mapex Voyager, Ludwig Accent, Roland electrónica)
+- **Bajos**: 4 instrumentos (Squier, Ibanez, Yamaha, Ibanez 5 cuerdas)
+
+#### Por Estado Operativo
+- **Disponibles**: 14 instrumentos (70%)
+- **En mantenimiento**: 4 instrumentos (20%)
+- **Fuera de servicio**: 1 instrumento (5%)
+- **Reservados**: 1 instrumento (5%)
+
+### 📚 Programas Académicos
+
+#### Por Nivel de Dificultad
+- **Básico**: 6 cursos (Piano, Guitarra, Teoría, Violín, Bajo, Canto)
+- **Intermedio**: 5 cursos (Guitarra, Piano, Canto, Batería, Teoría)
+- **Avanzado**: 4 cursos (Violín, Canto, Piano Salsero, Teoría Musical)
+
+#### Por Instrumento
+- **Piano**: 4 cursos (básico, intermedio, avanzado, salsero)
+- **Guitarra**: 3 cursos (principiantes, intermedia, clásica)
+- **Canto**: 3 cursos (moderno, avanzado, técnica vocal)
+- **Violín**: 2 cursos (avanzado, introducción)
+- **Teoría Musical**: 2 cursos (básico, avanzado)
+- **Batería**: 1 curso (rock intermedio)
+- **Bajo**: 1 curso (eléctrico básico)
+
+### 💰 Estructura Financiera
+
+#### Rangos de Precios por Nivel
+- **Básico**: $400,000 - $550,000 COP
+- **Intermedio**: $520,000 - $600,000 COP  
+- **Avanzado**: $650,000 - $800,000 COP
+
+#### Estados de Inscripción
+- **Activas**: 22 inscripciones (73%)
+- **Finalizadas**: 2 inscripciones (7%)
+- **Pendientes**: 2 inscripciones (7%)
+- **Canceladas**: 4 inscripciones (13%)
+
+### 🎯 Sistema de Reservas
+
+#### Distribución Temporal
+- **Horarios**: 09:00 - 18:00 (horario académico)
+- **Duración**: 1-3 horas por reserva
+- **Fechas**: Octubre-Noviembre 2025 (datos futuros)
+
+#### Estados de Reservas
+- **Activas**: 6 reservas (60%)
+- **Finalizadas**: 2 reservas (20%)
+- **Canceladas**: 2 reservas (20%)
+
+### 🔄 Relaciones de Datos
+
+#### Integridad Referencial
+- **Usuarios ↔ Profesores**: Relación 1:1 (10 pares)
+- **Usuarios ↔ Estudiantes**: Relación 1:1 (15 pares)
+- **Sedes → Cursos**: 1:N (3 sedes, 15 cursos)
+- **Profesores → Cursos**: 1:N (10 profesores, 15 cursos)
+- **Estudiantes → Inscripciones**: 1:N (15 estudiantes, 30 inscripciones)
+- **Instrumentos → Reservas**: 1:N (20 instrumentos, 10 reservas)
+
+#### Casos de Prueba Específicos
+- **Múltiples inscripciones**: Estudiantes inscritos en 2 cursos cada uno
+- **Estados variados**: Datos con diferentes estados para probar filtros
+- **Distribución geográfica**: Datos equilibrados entre las 3 sedes
+- **Especialidades cruzadas**: Profesores con múltiples especialidades
+- **Costos congelados**: Precios históricos preservados en inscripciones
+
+---
+
+## 📈 Explicación de Cada Agregación
+
+El archivo `aggregation.js` implementa **8 consultas de agregación** que resuelven preguntas de negocio clave usando el pipeline de MongoDB. Cada consulta está diseñada paso a paso con explicaciones detalladas.
+
+### 🔍 Agregación 1: Inscripciones por Sede (Último Mes)
+
+**Pregunta de negocio**: *¿Cuántos estudiantes se inscribieron por sede en el último mes?*
+
+```javascript
+db.inscripciones.aggregate([
+  { $match: { fechaInscripcion: { $gte: fechaHaceUnMes } } },
+  { $lookup: { from: "cursos", localField: "cursoId", foreignField: "_id", as: "curso" } },
+  { $unwind: "$curso" },
+  { $lookup: { from: "sedes", localField: "curso.sedeId", foreignField: "_id", as: "sede" } },
+  { $unwind: "$sede" },
+  { $group: { _id: "$sede.nombre", total: { $sum: 1 }, ciudad: { $first: "$sede.ciudad" } } },
+  { $sort: { total: -1 } }
+])
+```
+
+**Pipeline explicado**:
+1. **$match**: Filtra inscripciones del último mes
+2. **$lookup**: Conecta con cursos para obtener sedeId
+3. **$unwind**: Descompone array de cursos
+4. **$lookup**: Conecta con sedes para obtener información geográfica
+5. **$unwind**: Descompone array de sedes
+6. **$group**: Agrupa por sede y cuenta inscripciones
+7. **$sort**: Ordena por cantidad (mayor a menor)
+
+**Utilidad**: Análisis de demanda geográfica y tendencias de crecimiento por ubicación.
+
+### 📊 Agregación 2: Cursos Más Demandados por Sede
+
+**Pregunta de negocio**: *¿Cuál es el curso más popular en cada sede?*
+
+```javascript
+db.inscripciones.aggregate([
+  { $lookup: { from: "cursos", localField: "cursoId", foreignField: "_id", as: "curso" } },
+  { $unwind: "$curso" },
+  { $lookup: { from: "sedes", localField: "curso.sedeId", foreignField: "_id", as: "sede" } },
+  { $unwind: "$sede" },
+  { $group: { _id: { sede: "$sede.nombre", curso: "$curso.nombre", nivel: "$curso.nivel", instrumento: "$curso.instrumento" }, inscripciones: { $sum: 1 } } },
+  { $sort: { "_id.sede": 1, "inscripciones": -1 } },
+  { $group: { _id: "$_id.sede", cursoMasPopular: { $first: "$_id.curso" }, nivel: { $first: "$_id.nivel" }, instrumento: { $first: "$_id.instrumento" }, totalInscripciones: { $first: "$inscripciones" } } },
+  { $sort: { _id: 1 } }
+])
+```
+
+**Pipeline explicado**:
+1. **$lookup**: Conecta inscripciones con cursos
+2. **$lookup**: Conecta cursos con sedes
+3. **$group**: Cuenta inscripciones por curso y sede
+4. **$sort**: Ordena por sede y popularidad
+5. **$group**: Toma el curso más popular de cada sede
+6. **$sort**: Ordena alfabéticamente por sede
+
+**Utilidad**: Identificar programas de mayor demanda para planificación académica.
+
+### 💰 Agregación 3: Ingresos Totales por Sede
+
+**Pregunta de negocio**: *¿Cuál es el ingreso total generado por inscripciones en cada sede?*
+
+```javascript
+db.inscripciones.aggregate([
+  { $lookup: { from: "cursos", localField: "cursoId", foreignField: "_id", as: "curso" } },
+  { $unwind: "$curso" },
+  { $lookup: { from: "sedes", localField: "curso.sedeId", foreignField: "_id", as: "sede" } },
+  { $unwind: "$sede" },
+  { $group: { _id: "$sede.nombre", ingresoTotal: { $sum: "$costoCongelado" }, totalInscripciones: { $sum: 1 }, ciudad: { $first: "$sede.ciudad" } } },
+  { $sort: { ingresoTotal: -1 } }
+])
+```
+
+**Pipeline explicado**:
+1. **$lookup**: Conecta con cursos para obtener sede
+2. **$lookup**: Conecta con sedes para agrupar ingresos
+3. **$group**: Suma costos congelados por sede
+4. **$sort**: Ordena por ingreso total (mayor a menor)
+
+**Utilidad**: Análisis financiero para evaluar rentabilidad por ubicación.
+
+### 👨‍🏫 Agregación 4: Profesor con Más Estudiantes
+
+**Pregunta de negocio**: *¿Qué profesor tiene la mayor carga de estudiantes activos?*
+
+```javascript
+db.inscripciones.aggregate([
+  { $match: { estado: "activa" } },
+  { $lookup: { from: "cursos", localField: "cursoId", foreignField: "_id", as: "curso" } },
+  { $unwind: "$curso" },
+  { $lookup: { from: "profesores", localField: "curso.profesorId", foreignField: "_id", as: "profesor" } },
+  { $unwind: "$profesor" },
+  { $lookup: { from: "usuarios", localField: "profesor.usuarioId", foreignField: "_id", as: "usuario" } },
+  { $unwind: "$usuario" },
+  { $group: { _id: "$usuario.username", totalEstudiantes: { $sum: 1 }, especialidades: { $first: "$profesor.especialidades" }, email: { $first: "$usuario.email" } } },
+  { $sort: { totalEstudiantes: -1 } },
+  { $limit: 1 }
+])
+```
+
+**Pipeline explicado**:
+1. **$match**: Solo inscripciones activas
+2. **$lookup**: Conecta con cursos para obtener profesorId
+3. **$lookup**: Conecta con profesores para obtener perfil
+4. **$lookup**: Conecta con usuarios para obtener nombre
+5. **$group**: Cuenta estudiantes por profesor
+6. **$sort**: Ordena por carga de trabajo
+7. **$limit**: Toma solo el profesor con más estudiantes
+
+**Utilidad**: Gestión de carga académica y distribución equitativa de trabajo.
+
+### 🎸 Agregación 5: Instrumento Más Reservado
+
+**Pregunta de negocio**: *¿Qué tipo de instrumento es el más reservado?*
+
+```javascript
+db.reservas_instrumentos.aggregate([
+  { $lookup: { from: "instrumentos", localField: "instrumentoId", foreignField: "_id", as: "instrumento" } },
+  { $unwind: "$instrumento" },
+  { $group: { _id: "$instrumento.tipo", totalReservas: { $sum: 1 }, ejemploInstrumento: { $first: "$instrumento.nombre" } } },
+  { $sort: { totalReservas: -1 } },
+  { $limit: 1 }
+])
+```
+
+**Pipeline explicado**:
+1. **$lookup**: Conecta reservas con instrumentos
+2. **$unwind**: Descompone array de instrumentos
+3. **$group**: Cuenta reservas por tipo de instrumento
+4. **$sort**: Ordena por popularidad
+5. **$limit**: Toma solo el más reservado
+
+**Utilidad**: Optimización de inventario y planificación de compras.
+
+### 👤 Agregación 6: Historial Completo de Estudiante
+
+**Pregunta de negocio**: *¿Cuál es el historial académico completo de un estudiante específico?*
+
+```javascript
+db.inscripciones.aggregate([
+  { $match: { estudianteId: estudiante._id } },
+  { $lookup: { from: "cursos", localField: "cursoId", foreignField: "_id", as: "curso" } },
+  { $unwind: "$curso" },
+  { $lookup: { from: "sedes", localField: "curso.sedeId", foreignField: "_id", as: "sede" } },
+  { $unwind: "$sede" },
+  { $lookup: { from: "profesores", localField: "curso.profesorId", foreignField: "_id", as: "profesor" } },
+  { $unwind: "$profesor" },
+  { $lookup: { from: "usuarios", localField: "profesor.usuarioId", foreignField: "_id", as: "usuarioProfesor" } },
+  { $unwind: "$usuarioProfesor" },
+  { $project: { _id: 0, fecha: "$fechaInscripcion", sede: "$sede.nombre", curso: "$curso.nombre", profesor: "$usuarioProfesor.username", nivel: "$curso.nivel", costo: "$costoCongelado", estado: "$estado" } },
+  { $sort: { fecha: -1 } }
+])
+```
+
+**Pipeline explicado**:
+1. **$match**: Filtra por estudiante específico
+2. **$lookup** (múltiples): Conecta con cursos, sedes, profesores y usuarios
+3. **$project**: Selecciona campos específicos del historial
+4. **$sort**: Ordena cronológicamente (más reciente primero)
+
+**Utilidad**: Seguimiento académico personalizado y reportes de progreso estudiantil.
+
+### 🏫 Agregación 7: Cursos Activos por Sede
+
+**Pregunta de negocio**: *¿Qué cursos están actualmente activos en cada sede?*
+
+```javascript
+db.cursos.aggregate([
+  { $match: { estado: "activo" } },
+  { $lookup: { from: "sedes", localField: "sedeId", foreignField: "_id", as: "sede" } },
+  { $unwind: "$sede" },
+  { $group: { _id: "$sede.nombre", cursos: { $push: { nombre: "$nombre", nivel: "$nivel", instrumento: "$instrumento", cuposDisponibles: "$cupos.disponibles", cuposMaximos: "$cupos.maximo" } }, totalCursos: { $sum: 1 }, ciudad: { $first: "$sede.ciudad" } } },
+  { $sort: { _id: 1 } }
+])
+```
+
+**Pipeline explicado**:
+1. **$match**: Solo cursos con estado activo
+2. **$lookup**: Conecta con sedes para agrupar
+3. **$group**: Agrupa cursos por sede con detalles
+4. **$sort**: Ordena alfabéticamente por sede
+
+**Utilidad**: Vista operativa de la oferta académica actual por ubicación.
+
+### ⚠️ Agregación 8: Detección de Sobrecupos
+
+**Pregunta de negocio**: *¿Hay cursos que excedieron su cupo permitido?*
+
+```javascript
+db.cursos.aggregate([
+  { $match: { "cupos.disponibles": { $lt: 0 } } },
+  { $lookup: { from: "sedes", localField: "sedeId", foreignField: "_id", as: "sede" } },
+  { $unwind: "$sede" },
+  { $project: { _id: 0, curso: "$nombre", sede: "$sede.nombre", cupoMaximo: "$cupos.maximo", cuposDisponibles: "$cupos.disponibles", sobrecupo: { $multiply: ["$cupos.disponibles", -1] }, nivel: "$nivel", instrumento: "$instrumento" } },
+  { $sort: { sobrecupo: -1 } }
+])
+```
+
+**Pipeline explicado**:
+1. **$match**: Busca cupos disponibles negativos (sobrecupo)
+2. **$lookup**: Conecta con sedes para contexto
+3. **$project**: Calcula y muestra el exceso de estudiantes
+4. **$sort**: Ordena por severidad del sobrecupo
+
+**Utilidad**: Control de calidad y detección de problemas operativos.
+
+### 🎯 Técnicas de Agregación Utilizadas
+
+#### 🔗 **$lookup (Joins)**
+- **Propósito**: Conectar colecciones relacionadas
+- **Uso**: Todas las consultas usan múltiples $lookup para enriquecer datos
+- **Ventaja**: Simula JOINs de SQL en MongoDB
+
+#### 📦 **$unwind**
+- **Propósito**: Convertir arrays en objetos individuales
+- **Uso**: Después de cada $lookup para acceso directo a campos
+- **Ventaja**: Permite trabajar con datos de referencia como objetos
+
+#### 📊 **$group**
+- **Propósito**: Agrupar documentos y realizar cálculos
+- **Uso**: Contar, sumar, promediar y tomar primeros valores
+- **Ventaja**: Equivalente a GROUP BY de SQL con operadores de agregación
+
+#### 🎯 **$match**
+- **Propósito**: Filtrar documentos por criterios específicos
+- **Uso**: Filtros por fecha, estado, estudiante específico
+- **Ventaja**: Reduce el conjunto de datos temprano en el pipeline
+
+#### 📋 **$project**
+- **Propósito**: Seleccionar y transformar campos específicos
+- **Uso**: Crear campos calculados y limpiar salida
+- **Ventaja**: Control total sobre la estructura de salida
+
+#### 🔢 **$sort**
+- **Propósito**: Ordenar resultados por criterios específicos
+- **Uso**: Ordenamiento por popularidad, fecha, alfabético
+- **Ventaja**: Resultados organizados para análisis
+
+#### ✂️ **$limit**
+- **Propósito**: Limitar número de resultados
+- **Uso**: Obtener "top 1" o "más popular"
+- **Ventaja**: Eficiencia en consultas de ranking
+
+### 📊 Casos de Uso por Agregación
+
+| Agregación | Stakeholder | Frecuencia | Propósito |
+|------------|-------------|------------|-----------|
+| **1. Inscripciones por sede** | Directores | Mensual | Análisis de demanda geográfica |
+| **2. Cursos más demandados** | Coordinadores | Semestral | Planificación académica |
+| **3. Ingresos por sede** | Finanzas | Mensual | Análisis de rentabilidad |
+| **4. Carga profesoral** | RRHH | Semestral | Distribución equitativa |
+| **5. Instrumentos populares** | Inventario | Trimestral | Planificación de compras |
+| **6. Historial estudiante** | Académicos | A demanda | Seguimiento personalizado |
+| **7. Cursos activos** | Operaciones | Diario | Vista operativa actual |
+| **8. Detección sobrecupos** | Calidad | Diario | Control de problemas |
+
+### 🚀 Beneficios del Diseño de Agregaciones
+
+#### ✅ **Legibilidad**
+- **Comentarios paso a paso**: Cada etapa del pipeline está explicada
+- **Justificación clara**: Se explica el "¿Por qué?" de cada operación
+- **Ejemplos concretos**: Casos de uso específicos documentados
+
+#### 🔄 **Reutilización**
+- **Patrones consistentes**: Misma estructura de $lookup → $unwind → $group
+- **Modularidad**: Cada consulta es independiente y modificable
+- **Escalabilidad**: Fácil agregar nuevas consultas siguiendo los patrones
+
+#### 📊 **Eficiencia**
+- **Índices optimizados**: Cada consulta aprovecha los índices existentes
+- **Pipeline optimizado**: Filtros tempranos con $match
+- **Resultados específicos**: $project limpia la salida innecesaria
+
+---
+
