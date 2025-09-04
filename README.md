@@ -1,6 +1,6 @@
-# Campus_MusicDB
+# 🎵  Campus_MusicDB
 <p align="center"> 
-  <img src="assets/mongodb.png" width="350"/> 
+  <img src="https://cdn3.emoji.gg/emojis/345529-pepemonster.png" width="350"/> 
 </p>
 
 <p align="center"> 
@@ -13,7 +13,7 @@
 </p>
 
 
-🎵 Campus Music es un sistema de escuela de música multi-ciudad que migra de hojas de cálculo a MongoDB para mejor consistencia de datos, análisis y transacciones. 💻 Este proyecto incluye diseño de esquemas, datos de prueba realistas, consultas analíticas, acceso basado en roles y manejo completo de transacciones 📚 Estudiantes, profesores, cursos e instrumentos todo en un sistema unificado
+> 🎵 Campus Music es un sistema de escuela de música multi-ciudad que migra de hojas de cálculo a MongoDB para mejor consistencia de datos, análisis y transacciones. 💻 Este proyecto incluye diseño de esquemas, datos de prueba realistas, consultas analíticas, acceso basado en roles y manejo completo de transacciones 📚 Estudiantes, profesores, cursos e instrumentos todo en un sistema unificado
 
 
 ---
@@ -152,6 +152,63 @@ mongosh --file transacciones.js
 - **Consistencia de datos**: Previene estados inconsistentes
 
 ---
+---
+
+## 📸 Capturas del Diseño
+
+### 🏗️ Configuración de Base de Datos
+
+<p align="center">
+  <b>Configuración Principal de MongoDB</b><br>
+  <img src="assets/db_config.png" width="600"/>
+  <br><i>Configuración inicial de la base de datos Campus Music con colecciones, validaciones e índices</i>
+</p>
+
+<p align="center">
+  <b>Configuración Detallada de Esquemas</b><br>
+  <img src="assets/db_config_1.png" width="600"/>
+  <br><i>Definición detallada de validaciones $jsonSchema para cada colección del sistema</i>
+</p>
+
+### 🎲 Datos de Prueba
+
+<p align="center">
+  <b>Datos de Prueba Realistas</b><br>
+  <img src="assets/test_dataset.png" width="600"/>
+  <br><i>Inserción de datos de prueba que simulan el funcionamiento real de la escuela de música</i>
+</p>
+
+### 📊 Consultas Analíticas
+
+<p align="center">
+  <b>Agregaciones MongoDB</b><br>
+  <img src="assets/aggregation.js.png" width="600"/>
+  <br><i>Ejecución de consultas de agregación para análisis de negocio y reportes operativos</i>
+</p>
+
+### 🔐 Sistema de Seguridad
+
+<p align="center">
+  <b>Configuración de Roles y Permisos</b><br>
+  <img src="assets/roles.js.png" width="600"/>
+  <br><i>Implementación del sistema RBAC (Control de Acceso Basado en Roles) para usuarios del sistema</i>
+</p>
+
+### 🔍 Navegación y Búsqueda
+
+<p align="center">
+  <b>Búsqueda de Rutas y Documentación</b><br>
+  <img src="assets/buscar_ruta.png" width="600"/>
+  <br><i>Interfaz de búsqueda y navegación para encontrar documentación y recursos del proyecto</i>
+</p>
+
+### 🎵 Logo del Proyecto
+
+<p align="center">
+  <b>Logo de Campus Music DB</b><br>
+  <img src="assets/mongodb.png" width="400"/>
+  <br><i>Logo oficial del proyecto Campus Music DB con integración MongoDB</i>
+</p>
 
 ## 📊 Consultas Analíticas Implementadas
 
