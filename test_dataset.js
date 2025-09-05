@@ -4,7 +4,6 @@
 
 // --- PASO 0: Conexión y Limpieza ---
 use('CampusMusicDB');
-db.dropDatabase();
 print("Base de datos limpiada y lista.");
 
 // --- PASO 1: Insertar Sedes ---
